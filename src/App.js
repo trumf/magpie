@@ -5,7 +5,7 @@ import DatabaseImporter from "./DatabaseImporter";
 function App() {
   return (
     <div className="App">
-      <DatabaseImporter />
+      <MarkdownReader />
     </div>
   );
 }

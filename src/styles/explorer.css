@@ -1,0 +1,81 @@
+/* File Explorer */
+.explorer {
+  position: relative;
+  width: 280px;
+  height: 100vh;
+  border-right: 1px solid #e5e7eb;
+  transition: width 0.3s ease;
+  background-color: white;
+}
+
+.explorer--collapsed {
+  width: 40px;
+}
+
+.explorer__toggle {
+  position: absolute;
+  right: -12px;
+  top: 20px;
+  width: 24px;
+  height: 24px;
+  background-color: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  color: #6b7280;
+  transition: transform 0.2s ease;
+}
+
+.explorer__toggle:hover {
+  transform: scale(1.1);
+  color: #3b82f6;
+}
+
+.explorer__content {
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.explorer--collapsed .explorer__content {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.explorer__item {
+  display: flex;
+  align-items: center;
+  padding: 4px 8px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.explorer__item:hover {
+  background-color: #f3f4f6;
+}
+
+.explorer__icon {
+  width: 16px;
+  height: 16px;
+  margin: 0 8px;
+  flex-shrink: 0;
+}
+
+.explorer__icon--folder {
+  color: #3b82f6;
+}
+
+.explorer__icon--file {
+  color: #6b7280;
+}
+
+.explorer__name {
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
