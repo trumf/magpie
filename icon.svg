@@ -1,0 +1,50 @@
+<svg width="300" height="300" viewBox="0 0 300 300" 
+     xmlns="http://www.w3.org/2000/svg"
+     version="1.1">
+  <title>Magpie</title>
+  
+  <!-- Body silhouette -->
+  <path d="
+    M100,130
+    C110,100 150,80 180,100
+    C200,120 210,160 190,180
+    C160,210 130,200 110,170
+    C100,160 90,140 100,130
+    Z"
+    fill="black" />
+  
+  <!-- White chest -->
+  <path d="
+    M115,140
+    C120,125 140,115 160,135
+    C175,150 175,160 165,170
+    C150,185 125,165 115,155
+    C110,150 110,145 115,140
+    Z"
+    fill="white" />
+  
+  <!-- Tail (black) -->
+  <path d="
+    M180,140
+    L220,110
+    C230,100 250,95 250,105
+    C250,115 230,130 220,135
+    L180,150
+    Z"
+    fill="black" />
+  
+  <!-- Head (black) -->
+  <circle cx="100" cy="110" r="20" fill="black" />
+  
+  <!-- Eye (small white circle) -->
+  <circle cx="107" cy="105" r="3" fill="white" />
+  
+  <!-- Beak -->
+  <path d="
+    M84,100
+    L60,95
+    C55,94 55,86 60,85
+    L84,80
+    Z"
+    fill="black" />
+</svg>
