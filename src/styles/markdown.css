@@ -17,6 +17,10 @@
   transition: background-color 0.2s ease;
 }
 
+.markdown__paragraph h1 {
+  line-height: 1.2;
+}
+
 .markdown__paragraph--interactive {
   cursor: pointer;
 }

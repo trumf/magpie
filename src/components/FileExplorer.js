@@ -7,6 +7,7 @@ import {
   PanelLeftClose,
   PanelLeft,
 } from "lucide-react";
+import "../styles/explorer.css";
 
 const FileExplorer = ({files, onFileSelect}) => {
   const [expandedFolders, setExpandedFolders] = useState(new Set());
