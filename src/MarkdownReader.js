@@ -140,6 +140,7 @@ const MarkdownReader = () => {
                   <AnnotatedMarkdown
                     content={fileContent}
                     articleId={selectedFile.path}
+                    directoryHandle={directoryHandle} // Add this prop
                   />
                 </SwipeableArticle>
               ) : (
