@@ -1,8 +1,11 @@
 import React, {useState} from "react";
 import {Upload} from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
-import "./styles/explorer.css";
 import AnnotatedMarkdown from "./AnnotationMarkdown";
+import SwipeableArticle from "./components/SwipeableArticle";
+
+import "./styles/reader.css"; // Contains the .reader and related styles
+import "./styles/explorer.css"; // Contains the .explorer and related styles
 
 const MarkdownReader = () => {
   const [files, setFiles] = useState([]);
@@ -46,6 +49,8 @@ const MarkdownReader = () => {
       setDirectoryHandle(handle);
       const processedFiles = await processDirectory(handle);
       setFiles(processedFiles);
+      setSelectedFile(null);
+      setFileContent("");
     } catch (error) {
       console.error("Error selecting folder:", error);
     }
@@ -64,29 +69,79 @@ const MarkdownReader = () => {
     }
   };
 
+  const getAllFiles = (items) => {
+    return items.reduce((acc, item) => {
+      if (item.type === "file") {
+        acc.push(item);
+      } else if (item.children) {
+        acc.push(...getAllFiles(item.children));
+      }
+      return acc;
+    }, []);
+  };
+
+  const onNext = async () => {
+    if (!selectedFile) return;
+
+    const allFiles = getAllFiles(files);
+    const currentIndex = allFiles.findIndex(
+      (file) => file.path === selectedFile.path
+    );
+
+    if (currentIndex < allFiles.length - 1) {
+      const nextFile = allFiles[currentIndex + 1];
+      await handleFileSelect(nextFile);
+    }
+  };
+
+  const onPrevious = async () => {
+    if (!selectedFile) return;
+
+    const allFiles = getAllFiles(files);
+    const currentIndex = allFiles.findIndex(
+      (file) => file.path === selectedFile.path
+    );
+
+    if (currentIndex > 0) {
+      const previousFile = allFiles[currentIndex - 1];
+      await handleFileSelect(previousFile);
+    }
+  };
+
+  const allFiles = getAllFiles(files);
+  const currentIndex = selectedFile
+    ? allFiles.findIndex((file) => file.path === selectedFile.path)
+    : -1;
+
+  const hasNext = currentIndex < allFiles.length - 1 && currentIndex !== -1;
+  const hasPrevious = currentIndex > 0;
+
   return (
     <div className="reader">
-      {!directoryHandle && (
+      {!directoryHandle ? (
         <div className="reader__welcome">
           <button onClick={handleFolderSelect} className="reader__button">
             <Upload size={16} />
             Select Folder
           </button>
         </div>
-      )}
-
-      {directoryHandle && (
+      ) : (
         <div className="reader__content">
           <FileExplorer files={files} onFileSelect={handleFileSelect} />
           <div className="reader__main">
             <div className="reader__view">
               {selectedFile ? (
-                <AnnotatedMarkdown
-                  content={fileContent}
-                  articleId={selectedFile.path}
-                  directoryHandle={directoryHandle}
-                  filePath={selectedFile.path}
-                />
+                <SwipeableArticle
+                  onNext={onNext}
+                  onPrevious={onPrevious}
+                  hasNext={hasNext}
+                  hasPrevious={hasPrevious}
+                >
+                  <AnnotatedMarkdown
+                    content={fileContent}
+                    articleId={selectedFile.path}
+                  />
+                </SwipeableArticle>
               ) : (
                 <div className="reader__empty-state">
                   Select a file to view its contents

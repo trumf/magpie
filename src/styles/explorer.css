@@ -43,7 +43,7 @@
 
 .explorer--collapsed .explorer__content {
   opacity: 0;
-  visibility: hidden;
+  /*visibility: hidden;*/
 }
 
 .explorer__item {

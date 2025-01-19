@@ -13,6 +13,7 @@ const FileExplorer = ({files, onFileSelect}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
 
   const toggleFolder = (path) => {
+    console.log("Toggling folder:", path);
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(path)) {
       newExpanded.delete(path);
@@ -20,6 +21,16 @@ const FileExplorer = ({files, onFileSelect}) => {
       newExpanded.add(path);
     }
     setExpandedFolders(newExpanded);
+  };
+
+  const handleItemClick = (item) => {
+    console.log("Item clicked:", item);
+    if (item.type === "directory") {
+      toggleFolder(item.path);
+    } else {
+      console.log("Selecting file:", item);
+      onFileSelect(item);
+    }
   };
 
   const renderItem = (item, depth = 0) => {
@@ -33,9 +44,7 @@ const FileExplorer = ({files, onFileSelect}) => {
         <div
           className="explorer__item"
           style={{paddingLeft: `${depth * 16 + 8}px`}}
-          onClick={() =>
-            isFolder ? toggleFolder(item.path) : onFileSelect(item)
-          }
+          onClick={() => handleItemClick(item)}
         >
           {isFolder ? (
             <>
