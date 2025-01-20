@@ -1,6 +1,6 @@
 {
-  "name": "Markdown Reader",
-  "short_name": "MDReader",
+  "name": "Magpie",
+  "short_name": "Magpie",
   "description": "A modern markdown reader with annotation capabilities",
   "start_url": ".",
   "display": "standalone",
