@@ -1,0 +1,31 @@
+/* Add to your CSS */
+.export-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  background-color: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+}
+
+.export-button:hover {
+  background-color: #2563eb;
+}
+
+.export-button:disabled {
+  background-color: #93c5fd;
+  cursor: not-allowed;
+}
+
+.export-button svg {
+  transition: transform 0.2s;
+}
+
+.export-button:hover svg {
+  transform: translateY(2px);
+}

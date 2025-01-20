@@ -1,0 +1,113 @@
+/* src/styles/import.css */
+.import {
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.import__container {
+  width: 100%;
+  max-width: 32rem;
+}
+
+.import__primary {
+  margin-bottom: 1.5rem;
+}
+
+.import__button {
+  width: 100%;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.import__button--primary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.import__button--primary:hover:not(:disabled) {
+  background-color: #2563eb;
+}
+
+.import__button--secondary {
+  background-color: #f3f4f6;
+}
+
+.import__button--secondary:hover:not(:disabled) {
+  background-color: #e5e7eb;
+}
+
+.import__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.import__buttons-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.import__description {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-top: 0.5rem;
+}
+
+.import__help-button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: #6b7280;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0.5rem;
+}
+
+.import__help {
+  width: 100%;
+  max-width: 32rem;
+  background-color: #f9fafb;
+  padding: 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+}
+
+.import__help-title {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+.import__help-list {
+  padding-left: 1.5rem;
+}
+
+.import__help-item {
+  margin-bottom: 0.5rem;
+}
+
+.import__help-sublist {
+  padding-left: 1.5rem;
+  margin-top: 0.25rem;
+}
+
+.import__error {
+  width: 100%;
+  max-width: 32rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-radius: 0.5rem;
+  background-color: #fee2e2;
+  color: #dc2626;
+}

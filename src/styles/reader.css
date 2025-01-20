@@ -170,3 +170,30 @@
 .annotation-panel__button--cancel {
   background-color: #f44336;
 }
+.reader__divider {
+  margin: 1rem 0;
+  text-align: center;
+  color: #666;
+}
+
+.explorer__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.5rem;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.explorer__reset {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem;
+  color: #666;
+  border-radius: 4px;
+}
+
+.explorer__reset:hover {
+  background-color: #f3f4f6;
+  color: #000;
+}

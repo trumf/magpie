@@ -3,15 +3,14 @@ import {Upload} from "lucide-react";
 import FileExplorer from "./components/FileExplorer";
 import AnnotatedMarkdown from "./AnnotationMarkdown";
 import SwipeableArticle from "./components/SwipeableArticle";
-
-import "./styles/reader.css"; // Contains the .reader and related styles
-import "./styles/explorer.css"; // Contains the .explorer and related styles
+import ImportUI from "./components/ImportUI"; // Add import
 
 const MarkdownReader = () => {
   const [files, setFiles] = useState([]);
   const [selectedFile, setSelectedFile] = useState(null);
   const [fileContent, setFileContent] = useState("");
   const [directoryHandle, setDirectoryHandle] = useState(null);
+  const [importMode, setImportMode] = useState(true); // New state for controlling view
 
   const processDirectory = async (dirHandle, path = "") => {
     const entries = [];
@@ -43,6 +42,11 @@ const MarkdownReader = () => {
     });
   };
 
+  const handleImportComplete = async (importedFiles) => {
+    setFiles(importedFiles);
+    setImportMode(false);
+  };
+
   const handleFolderSelect = async () => {
     try {
       const handle = await window.showDirectoryPicker();
@@ -51,6 +55,7 @@ const MarkdownReader = () => {
       setFiles(processedFiles);
       setSelectedFile(null);
       setFileContent("");
+      setImportMode(false); // Exit import mode after successful folder selection
     } catch (error) {
       console.error("Error selecting folder:", error);
     }
@@ -82,29 +87,23 @@ const MarkdownReader = () => {
 
   const onNext = async () => {
     if (!selectedFile) return;
-
     const allFiles = getAllFiles(files);
     const currentIndex = allFiles.findIndex(
       (file) => file.path === selectedFile.path
     );
-
     if (currentIndex < allFiles.length - 1) {
-      const nextFile = allFiles[currentIndex + 1];
-      await handleFileSelect(nextFile);
+      await handleFileSelect(allFiles[currentIndex + 1]);
     }
   };
 
   const onPrevious = async () => {
     if (!selectedFile) return;
-
     const allFiles = getAllFiles(files);
     const currentIndex = allFiles.findIndex(
       (file) => file.path === selectedFile.path
     );
-
     if (currentIndex > 0) {
-      const previousFile = allFiles[currentIndex - 1];
-      await handleFileSelect(previousFile);
+      await handleFileSelect(allFiles[currentIndex - 1]);
     }
   };
 
@@ -112,9 +111,13 @@ const MarkdownReader = () => {
   const currentIndex = selectedFile
     ? allFiles.findIndex((file) => file.path === selectedFile.path)
     : -1;
-
   const hasNext = currentIndex < allFiles.length - 1 && currentIndex !== -1;
   const hasPrevious = currentIndex > 0;
+
+  // Show ImportUI if in import mode and no directory handle
+  if (importMode && !directoryHandle) {
+    return <ImportUI onImportComplete={handleImportComplete} />;
+  }
 
   return (
     <div className="reader">
@@ -138,9 +141,10 @@ const MarkdownReader = () => {
                   hasPrevious={hasPrevious}
                 >
                   <AnnotatedMarkdown
+                    key={selectedFile.path} // Add key prop to force remount
                     content={fileContent}
                     articleId={selectedFile.path}
-                    directoryHandle={directoryHandle} // Add this prop
+                    directoryHandle={directoryHandle}
                   />
                 </SwipeableArticle>
               ) : (
