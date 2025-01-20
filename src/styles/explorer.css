@@ -6,10 +6,11 @@
   border-right: 1px solid #e5e7eb;
   transition: width 0.3s ease;
   background-color: white;
-  overflow: visible;
+  overflow-y: auto;
 }
 
-.explorer--collapsed {
+/* This needs to be more specific to override the base .explorer class */
+.explorer.explorer--collapsed {
   width: 40px;
 }
 

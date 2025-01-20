@@ -18,6 +18,11 @@ const FileExplorer = ({files, onFileSelect, onReset}) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // In FileExplorer.js:
+  useEffect(() => {
+    console.log("FileExplorer received files:", files);
+  }, [files]);
+
   // Debug effect to track state changes
   useEffect(() => {
     console.log("FileExplorer state changed:", {
@@ -109,7 +114,7 @@ const FileExplorer = ({files, onFileSelect, onReset}) => {
   };
 
   return (
-    <div className={`explorer ${isCollapsed ? "explorer--collapsed" : ""}`}>
+    <div className={isCollapsed ? "explorer explorer--collapsed" : "explorer"}>
       <div className="explorer__header">
         <ExportButton />
         {onReset && (

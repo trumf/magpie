@@ -22,7 +22,8 @@ const ImportUI = ({onImportComplete}) => {
       }
 
       const files = await importService.processZipFile(file);
-      onImportComplete(files);
+      // We don't pass a directoryHandle for ZIP files since we don't have one
+      onImportComplete(files, null);
     } catch (error) {
       console.error("Error processing ZIP:", error);
       setError(
@@ -39,7 +40,8 @@ const ImportUI = ({onImportComplete}) => {
       setImporting(true);
       const handle = await window.showDirectoryPicker();
       const files = await importService.processDirectory(handle);
-      onImportComplete(files);
+      // Pass both files and handle
+      onImportComplete(files, handle);
     } catch (error) {
       console.error("Error selecting directory:", error);
       setError(
@@ -61,7 +63,8 @@ const ImportUI = ({onImportComplete}) => {
         setError("No markdown files found. Please select .md files.");
         return;
       }
-      onImportComplete(files);
+      // We don't pass a directoryHandle for individual files
+      onImportComplete(files, null);
     } catch (error) {
       console.error("Error processing files:", error);
       setError("Error processing files. Please try again.");

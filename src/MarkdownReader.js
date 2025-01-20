@@ -12,6 +12,7 @@ const MarkdownReader = () => {
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [importMode, setImportMode] = useState(true); // New state for controlling view
 
+  /*
   const processDirectory = async (dirHandle, path = "") => {
     const entries = [];
     for await (const entry of dirHandle.values()) {
@@ -41,25 +42,41 @@ const MarkdownReader = () => {
       return a.name.localeCompare(b.name);
     });
   };
+  */
 
-  const handleImportComplete = async (importedFiles) => {
-    setFiles(importedFiles);
-    setImportMode(false);
+  const handleImportComplete = async (importedFiles, dirHandle) => {
+    try {
+      setFiles(importedFiles);
+      if (dirHandle) {
+        setDirectoryHandle(dirHandle);
+      }
+      setImportMode(false);
+      // If we have files but no directory handle, we need to handle them differently
+      if (!dirHandle && importedFiles.length > 0) {
+        // Select the first file automatically
+        await handleFileSelect(importedFiles[0]);
+      }
+    } catch (error) {
+      console.error("Error completing import:", error);
+    }
   };
 
+  /*
   const handleFolderSelect = async () => {
     try {
       const handle = await window.showDirectoryPicker();
       setDirectoryHandle(handle);
-      const processedFiles = await processDirectory(handle);
+      // Use importService instead of local processDirectory
+      const processedFiles = await importService.processDirectory(handle);
       setFiles(processedFiles);
       setSelectedFile(null);
       setFileContent("");
-      setImportMode(false); // Exit import mode after successful folder selection
+      setImportMode(false);
     } catch (error) {
       console.error("Error selecting folder:", error);
     }
   };
+  */
 
   const handleFileSelect = async (file) => {
     try {
@@ -121,13 +138,8 @@ const MarkdownReader = () => {
 
   return (
     <div className="reader">
-      {!directoryHandle ? (
-        <div className="reader__welcome">
-          <button onClick={handleFolderSelect} className="reader__button">
-            <Upload size={16} />
-            Select Folder
-          </button>
-        </div>
+      {importMode ? (
+        <ImportUI onImportComplete={handleImportComplete} />
       ) : (
         <div className="reader__content">
           <FileExplorer files={files} onFileSelect={handleFileSelect} />

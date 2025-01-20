@@ -29,6 +29,7 @@ class ImportService {
   }
 
   // Process directory using File System Access API
+  // In ImportService.js processDirectory method:
   async processDirectory(dirHandle, path = "") {
     const entries = [];
     for await (const entry of dirHandle.values()) {
@@ -42,6 +43,12 @@ class ImportService {
           children,
           handle: entry,
         });
+        console.log(
+          "Added directory:",
+          entry.name,
+          "with children:",
+          children.length
+        );
       } else if (entry.name.endsWith(".md")) {
         const file = await entry.getFile();
         const content = await file.text();
@@ -52,9 +59,14 @@ class ImportService {
           handle: entry,
           content,
         });
+        console.log("Added file:", entry.name);
       }
     }
-    return this.sortEntries(entries);
+
+    // Sort entries with files AND directories
+    const sortedEntries = this.sortEntries(entries);
+    console.log("Directory contents:", sortedEntries);
+    return sortedEntries;
   }
 
   // Process individual files
@@ -76,55 +88,58 @@ class ImportService {
   }
 
   // Helper to process ZIP entries into our file structure
-  processEntries(entries) {
-    const processDirectory = (path = "") => {
-      const dirFiles = [];
-      const dirs = new Set();
+  async processDirectory(dirHandle, path = "") {
+    const entries = [];
 
-      Object.keys(entries).forEach((filePath) => {
-        if (filePath.startsWith(path)) {
-          const relativePath = filePath.slice(path.length);
-          const parts = relativePath.split("/");
-          if (parts.length > 1) {
-            dirs.add(parts[0]);
-          } else if (filePath.endsWith(".md")) {
-            dirFiles.push({
-              type: "file",
-              name: parts[0],
-              path: filePath,
-              content: entries[filePath],
-            });
-          }
+    for await (const entry of dirHandle.values()) {
+      const entryPath = `${path}/${entry.name}`;
+
+      if (entry.kind === "directory") {
+        const subdirEntries = await this.processDirectory(entry, entryPath);
+        entries.push({
+          type: "directory",
+          name: entry.name,
+          path: entryPath,
+          children: subdirEntries,
+          handle: entry,
+        });
+        console.log(
+          `Added directory: ${entry.name} with children:`,
+          subdirEntries.length
+        );
+      } else {
+        // For all files (not just .md)
+        const fileEntry = {
+          type: "file",
+          name: entry.name,
+          path: entryPath,
+          handle: entry,
+        };
+
+        // Only fetch content for markdown files
+        if (entry.name.endsWith(".md")) {
+          const file = await entry.getFile();
+          fileEntry.content = await file.text();
         }
-      });
 
-      dirs.forEach((dir) => {
-        const dirPath = path + dir + "/";
-        const children = processDirectory(dirPath);
-        if (children.length > 0) {
-          dirFiles.push({
-            type: "directory",
-            name: dir,
-            path: dirPath,
-            children,
-          });
-        }
-      });
+        entries.push(fileEntry);
+        console.log(`Added file: ${entry.name}`);
+      }
+    }
 
-      return this.sortEntries(dirFiles);
-    };
-
-    return processDirectory();
-  }
-
-  // Helper to sort entries (directories first, then alphabetically)
-  sortEntries(entries) {
-    return entries.sort((a, b) => {
+    const sortedEntries = entries.sort((a, b) => {
       if (a.type !== b.type) {
         return a.type === "directory" ? -1 : 1;
       }
       return a.name.localeCompare(b.name);
     });
+
+    console.log(
+      `Directory ${path} contains:`,
+      sortedEntries.map((e) => ({name: e.name, type: e.type}))
+    );
+
+    return sortedEntries;
   }
 
   // Find the first markdown file in the hierarchy
