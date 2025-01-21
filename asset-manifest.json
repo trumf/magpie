@@ -1,13 +1,13 @@
 {
   "files": {
     "main.css": "/magpie/static/css/main.174a9488.css",
-    "main.js": "/magpie/static/js/main.8b58170e.js",
+    "main.js": "/magpie/static/js/main.c997246e.js",
     "index.html": "/magpie/index.html",
     "main.174a9488.css.map": "/magpie/static/css/main.174a9488.css.map",
-    "main.8b58170e.js.map": "/magpie/static/js/main.8b58170e.js.map"
+    "main.c997246e.js.map": "/magpie/static/js/main.c997246e.js.map"
   },
   "entrypoints": [
     "static/css/main.174a9488.css",
-    "static/js/main.8b58170e.js"
+    "static/js/main.c997246e.js"
   ]
 }
