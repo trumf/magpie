@@ -4,6 +4,7 @@ import FileExplorer from "./components/FileExplorer";
 import AnnotatedMarkdown from "./AnnotationMarkdown";
 import SwipeableArticle from "./components/SwipeableArticle";
 import ImportUI from "./components/ImportUI"; // Add import
+import "./styles/reader.css";
 
 const MarkdownReader = () => {
   const [files, setFiles] = useState([]);
@@ -11,38 +12,6 @@ const MarkdownReader = () => {
   const [fileContent, setFileContent] = useState("");
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [importMode, setImportMode] = useState(true); // New state for controlling view
-
-  /*
-  const processDirectory = async (dirHandle, path = "") => {
-    const entries = [];
-    for await (const entry of dirHandle.values()) {
-      const entryPath = `${path}/${entry.name}`;
-      if (entry.kind === "directory") {
-        const children = await processDirectory(entry, entryPath);
-        entries.push({
-          type: "directory",
-          name: entry.name,
-          path: entryPath,
-          children,
-          handle: entry,
-        });
-      } else if (entry.name.endsWith(".md")) {
-        entries.push({
-          type: "file",
-          name: entry.name,
-          path: entryPath,
-          handle: entry,
-        });
-      }
-    }
-    return entries.sort((a, b) => {
-      if (a.type !== b.type) {
-        return a.type === "directory" ? -1 : 1;
-      }
-      return a.name.localeCompare(b.name);
-    });
-  };
-  */
 
   const handleImportComplete = async (importedFiles, dirHandle) => {
     try {
@@ -60,23 +29,6 @@ const MarkdownReader = () => {
       console.error("Error completing import:", error);
     }
   };
-
-  /*
-  const handleFolderSelect = async () => {
-    try {
-      const handle = await window.showDirectoryPicker();
-      setDirectoryHandle(handle);
-      // Use importService instead of local processDirectory
-      const processedFiles = await importService.processDirectory(handle);
-      setFiles(processedFiles);
-      setSelectedFile(null);
-      setFileContent("");
-      setImportMode(false);
-    } catch (error) {
-      console.error("Error selecting folder:", error);
-    }
-  };
-  */
 
   const handleFileSelect = async (file) => {
     try {
@@ -149,30 +101,41 @@ const MarkdownReader = () => {
       {importMode ? (
         <ImportUI onImportComplete={handleImportComplete} />
       ) : (
-        <div className="reader__content">
-          <FileExplorer files={files} onFileSelect={handleFileSelect} />
-          <div className="reader__main">
-            <div className="reader__view">
-              {selectedFile ? (
-                <SwipeableArticle
-                  onNext={onNext}
-                  onPrevious={onPrevious}
-                  hasNext={hasNext}
-                  hasPrevious={hasPrevious}
-                >
+        <div className="reader__welcome">
+          <FileExplorer
+            files={files}
+            onFileSelect={handleFileSelect}
+            onReset={() => {
+              setImportMode(true);
+              setFiles([]);
+              setSelectedFile(null);
+              setFileContent("");
+              setDirectoryHandle(null);
+            }}
+          />
+
+          <div className="reader__content">
+            {selectedFile ? (
+              <SwipeableArticle
+                onNext={onNext}
+                onPrevious={onPrevious}
+                hasNext={hasNext}
+                hasPrevious={hasPrevious}
+              >
+                <div className="reader__article">
                   <AnnotatedMarkdown
-                    key={selectedFile.path} // Add key prop to force remount
+                    key={selectedFile.path}
                     content={fileContent}
                     articleId={selectedFile.path}
                     directoryHandle={directoryHandle}
                   />
-                </SwipeableArticle>
-              ) : (
-                <div className="reader__empty-state">
-                  Select a file to view its contents
                 </div>
-              )}
-            </div>
+              </SwipeableArticle>
+            ) : (
+              <div className="reader__empty-state">
+                Select a file to view its contents
+              </div>
+            )}
           </div>
         </div>
       )}

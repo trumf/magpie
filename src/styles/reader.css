@@ -2,6 +2,7 @@
 .reader {
   display: flex;
   height: 100vh;
+  width: 100%;
   background-color: white;
 }
 
@@ -28,20 +29,22 @@
 .reader__content {
   display: flex;
   flex: 1;
+  position: relative;
 }
 
 .reader__main {
   flex: 1;
-  overflow: auto;
+  overflow-y: auto;
   text-align: left;
 }
 
 .reader__view {
-  margin: 1rem;
+  margin: 0 auto;
+  max-width: 48rem;
   background-color: white;
   border-radius: 8px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 2rem;
+  padding: 2rem 1rem;
 }
 
 .reader__empty-state {
@@ -50,44 +53,6 @@
   justify-content: center;
   height: 100%;
   color: #6b7280;
-}
-
-/* File Explorer */
-.explorer {
-  width: 280px;
-  border-right: 1px solid #e5e7eb;
-  height: 100vh;
-  overflow-y: auto;
-}
-
-.explorer__item {
-  display: flex;
-  align-items: flex-start;
-  text-align: left;
-  padding: 4px 8px;
-  cursor: pointer;
-}
-
-.explorer__item:hover {
-  background-color: #f3f4f6;
-}
-
-.explorer__icon {
-  width: 16px;
-  height: 16px;
-  margin: 0 8px;
-}
-
-.explorer__icon--folder {
-  color: #3b82f6;
-}
-
-.explorer__icon--file {
-  color: #6b7280;
-}
-
-.explorer__name {
-  font-size: 14px;
 }
 
 /* Annotated Markdown */
@@ -169,31 +134,4 @@
 
 .annotation-panel__button--cancel {
   background-color: #f44336;
-}
-.reader__divider {
-  margin: 1rem 0;
-  text-align: center;
-  color: #666;
-}
-
-.explorer__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 0.5rem;
-  border-bottom: 1px solid #e5e7eb;
-}
-
-.explorer__reset {
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 0.25rem;
-  color: #666;
-  border-radius: 4px;
-}
-
-.explorer__reset:hover {
-  background-color: #f3f4f6;
-  color: #000;
 }
