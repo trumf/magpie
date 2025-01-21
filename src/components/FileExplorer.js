@@ -8,34 +8,17 @@ import {
   PanelLeft,
   RotateCcw,
 } from "lucide-react";
-import "../styles/explorer.css";
 import ExportButton from "./ExportButton";
+import "../styles/explorer.css";
 
 const FileExplorer = ({files, onFileSelect, onReset}) => {
-  console.log("FileExplorer rendering, files count:", files?.length); // Debug log
-
   const [expandedFolders, setExpandedFolders] = useState(new Set());
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isVisible, setIsVisible] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // In FileExplorer.js:
-  useEffect(() => {
-    console.log("FileExplorer received files:", files);
-  }, [files]);
-
-  // Debug effect to track state changes
-  useEffect(() => {
-    console.log("FileExplorer state changed:", {
-      expandedFoldersCount: expandedFolders.size,
-      isCollapsed,
-      isProcessing,
-    });
-  }, [expandedFolders, isCollapsed, isProcessing]);
 
   const toggleFolder = (path) => {
     if (isProcessing) return;
 
-    console.log("Toggling folder:", path);
     const newExpanded = new Set(expandedFolders);
     if (newExpanded.has(path)) {
       newExpanded.delete(path);
@@ -46,20 +29,17 @@ const FileExplorer = ({files, onFileSelect, onReset}) => {
   };
 
   const handleItemClick = async (item) => {
-    if (isProcessing) {
-      console.log("Already processing, skipping item click");
-      return;
-    }
+    if (isProcessing) return;
 
     try {
       setIsProcessing(true);
-      console.log("Item clicked:", item);
 
       if (item.type === "directory") {
         toggleFolder(item.path);
       } else {
-        console.log("Selecting file:", item);
         await onFileSelect(item);
+        // Close explorer on mobile after selecting a file
+        setIsVisible(false);
       }
     } finally {
       setIsProcessing(false);
@@ -68,17 +48,14 @@ const FileExplorer = ({files, onFileSelect, onReset}) => {
 
   const handleReset = () => {
     if (isProcessing) return;
-    console.log("Handling reset in FileExplorer");
     setExpandedFolders(new Set());
-    setIsCollapsed(false);
+    setIsVisible(false);
     onReset();
   };
 
   const renderItem = (item, depth = 0) => {
     const isFolder = item.type === "directory";
     const isExpanded = expandedFolders.has(item.path);
-
-    if (isCollapsed) return null;
 
     return (
       <div key={item.path}>
@@ -114,32 +91,45 @@ const FileExplorer = ({files, onFileSelect, onReset}) => {
   };
 
   return (
-    <div className={isCollapsed ? "explorer explorer--collapsed" : "explorer"}>
-      <div className="explorer__header">
-        <ExportButton />
-        {onReset && (
-          <button
-            className="explorer__reset"
-            onClick={handleReset}
-            disabled={isProcessing}
-            title="Reset and import new files"
-          >
-            <RotateCcw size={16} />
-          </button>
-        )}
-        <button
-          className="explorer__toggle"
-          onClick={() => !isProcessing && setIsCollapsed(!isCollapsed)}
-          disabled={isProcessing}
-          title={isCollapsed ? "Show file explorer" : "Hide file explorer"}
-        >
-          {isCollapsed ? <PanelLeft size={20} /> : <PanelLeftClose size={20} />}
-        </button>
+    <>
+      {/* Backdrop for mobile */}
+      <div
+        className={`explorer__backdrop ${
+          isVisible ? "explorer__backdrop--visible" : ""
+        }`}
+        onClick={() => setIsVisible(false)}
+      />
+
+      {/* Explorer Panel */}
+      <div className={`explorer ${isVisible ? "explorer--visible" : ""}`}>
+        <div className="explorer__header">
+          <ExportButton />
+          {onReset && (
+            <button
+              className="explorer__reset"
+              onClick={handleReset}
+              disabled={isProcessing}
+              title="Reset and import new files"
+            >
+              <RotateCcw size={16} />
+            </button>
+          )}
+        </div>
+
+        <div className="explorer__content">
+          {files?.map((item) => renderItem(item))}
+        </div>
       </div>
-      <div className="explorer__content">
-        {files?.map((item) => renderItem(item))}
-      </div>
-    </div>
+
+      {/* Toggle button - visible on mobile only */}
+      <button
+        className="explorer__toggle"
+        onClick={() => !isProcessing && setIsVisible(!isVisible)}
+        disabled={isProcessing}
+      >
+        {isVisible ? <PanelLeftClose size={20} /> : <PanelLeft size={20} />}
+      </button>
+    </>
   );
 };
 

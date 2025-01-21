@@ -1,5 +1,6 @@
 import React, {useState, useEffect, useCallback} from "react";
 import {ChevronLeft, ChevronRight} from "lucide-react";
+import "../styles/swipable.css";
 
 const SwipeableArticle = ({
   children,
@@ -57,33 +58,33 @@ const SwipeableArticle = ({
 
   return (
     <div
-      className="relative w-full h-full"
+      className="swipeable"
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
       {children}
 
-      <div className="fixed top-1/2 left-4 -translate-y-1/2">
+      <div className="swipeable__nav swipeable__nav--left">
         {hasPrevious && (
           <button
             onClick={onPrevious}
-            className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+            className="swipeable__button"
             aria-label="Previous article"
           >
-            <ChevronLeft className="w-6 h-6" />
+            <ChevronLeft className="swipeable__icon" />
           </button>
         )}
       </div>
 
-      <div className="fixed top-1/2 right-4 -translate-y-1/2">
+      <div className="swipeable__nav swipeable__nav--right">
         {hasNext && (
           <button
             onClick={onNext}
-            className="p-2 bg-white rounded-full shadow-lg hover:bg-gray-100 transition-colors"
+            className="swipeable__button"
             aria-label="Next article"
           >
-            <ChevronRight className="w-6 h-6" />
+            <ChevronRight className="swipeable__icon" />
           </button>
         )}
       </div>

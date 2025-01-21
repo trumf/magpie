@@ -1,4 +1,3 @@
-import "./App.css";
 import MarkdownReader from "./MarkdownReader";
 import "./reset.css";
 // Add this to your index.js or App.js
