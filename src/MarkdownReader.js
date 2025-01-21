@@ -80,11 +80,19 @@ const MarkdownReader = () => {
 
   const handleFileSelect = async (file) => {
     try {
-      const fileHandle = file.handle;
-      const fileData = await fileHandle.getFile();
-      const content = await fileData.text();
-      setSelectedFile(file);
-      setFileContent(content);
+      if (file.content) {
+        // If content is already loaded (ZIP file case)
+        setSelectedFile(file);
+        setFileContent(file.content);
+      } else if (file.handle) {
+        // Directory file case
+        const fileData = await file.handle.getFile();
+        const content = await fileData.text();
+        setSelectedFile(file);
+        setFileContent(content);
+      } else {
+        throw new Error("Invalid file entry");
+      }
     } catch (error) {
       console.error("Error reading file:", error);
       setFileContent("Error loading file content");

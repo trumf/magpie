@@ -8,24 +8,119 @@ class ImportService {
   }
 
   // Process ZIP file
+  // In ImportService.js
   async processZipFile(file) {
     const zip = new JSZip();
     const zipContent = await zip.loadAsync(file);
-    const entries = {};
+    const entries = [];
     const loadPromises = [];
 
+    // Helper to determine if file is an image
+    const isImage = (filename) =>
+      /\.(jpg|jpeg|png|gif|webp|svg)$/i.test(filename);
+
+    // First collect all unique directories from file paths
+    const directories = new Set();
+    zipContent.forEach((path) => {
+      const parts = path.split("/").slice(0, -1);
+      let currentPath = "";
+      parts.forEach((part) => {
+        currentPath = currentPath ? `${currentPath}/${part}` : part;
+        directories.add(currentPath);
+      });
+    });
+
+    // Create directory entries
+    directories.forEach((dirPath) => {
+      const pathParts = dirPath.split("/");
+      entries.push({
+        type: "directory",
+        name: pathParts[pathParts.length - 1] || dirPath,
+        path: dirPath,
+        children: [],
+      });
+    });
+
+    // Process all files
     zipContent.forEach((path, entry) => {
-      if (!entry.dir && path.endsWith(".md")) {
-        loadPromises.push(
-          entry.async("string").then((content) => {
-            entries[path] = content;
-          })
-        );
+      if (!entry.dir) {
+        const pathParts = path.split("/");
+        const fileName = pathParts[pathParts.length - 1];
+        const fileEntry = {
+          type: "file",
+          name: fileName,
+          path: path,
+        };
+
+        if (fileName.endsWith(".md")) {
+          // Handle markdown files
+          loadPromises.push(
+            entry.async("string").then((content) => {
+              fileEntry.content = content;
+            })
+          );
+        } else if (isImage(fileName)) {
+          // Handle image files
+          loadPromises.push(
+            entry.async("blob").then((blob) => {
+              fileEntry.blob = blob;
+              fileEntry.url = URL.createObjectURL(blob);
+            })
+          );
+        }
+        entries.push(fileEntry);
       }
     });
 
+    // Wait for all markdown content to load
     await Promise.all(loadPromises);
-    return this.processEntries(entries);
+
+    // Build directory tree
+    const root = [];
+    const dirMap = new Map();
+
+    // First pass: create directory map
+    entries.forEach((entry) => {
+      if (entry.type === "directory") {
+        dirMap.set(entry.path, entry);
+      }
+    });
+
+    // Second pass: organize files and directories into tree
+    entries.forEach((entry) => {
+      const pathParts = entry.path.split("/").filter(Boolean);
+
+      if (pathParts.length === 1) {
+        root.push(entry);
+      } else {
+        const parentPath = pathParts.slice(0, -1).join("/");
+        const parentDir = dirMap.get(parentPath);
+        if (parentDir) {
+          parentDir.children = parentDir.children || [];
+          parentDir.children.push(entry);
+        }
+      }
+    });
+
+    // Sort all levels
+    const sortEntries = (items) => {
+      items.sort((a, b) => {
+        if (a.type !== b.type) {
+          return a.type === "directory" ? -1 : 1;
+        }
+        return a.name.localeCompare(b.name);
+      });
+      items.forEach((item) => {
+        if (item.type === "directory" && item.children) {
+          sortEntries(item.children);
+        }
+      });
+    };
+
+    sortEntries(root);
+    console.log("Processed ZIP structure:", root);
+
+    return root;
   }
 
   // Process directory using File System Access API

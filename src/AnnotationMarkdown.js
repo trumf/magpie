@@ -21,45 +21,56 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
   useEffect(() => {
     const loadImage = async () => {
       try {
-        // Get the directory name from the markdown file path
-        const markdownPathParts = decodePath(filePath).split("/");
-        const markdownDir = markdownPathParts.slice(0, -1).join("/");
+        if (!src) return;
 
-        // Get the image path, handling both encoded and unencoded paths
-        const decodedSrc = decodePath(src);
-
-        // Split the path and filter out empty parts
-        const pathParts = decodedSrc.split("/").filter(Boolean);
-
-        // Start from the root directory handle
-        let currentHandle = directoryHandle;
-
-        // First navigate to the markdown file's directory
-        for (const part of markdownDir.split("/").filter(Boolean)) {
-          currentHandle = await currentHandle.getDirectoryHandle(part);
+        // If the src is already a blob URL (from ZIP), use it directly
+        if (src.startsWith("blob:")) {
+          setImageSrc(src);
+          return;
         }
 
-        // Then navigate to the image
-        for (let i = 0; i < pathParts.length; i++) {
-          const part = pathParts[i];
-          if (i === pathParts.length - 1) {
-            // Last part is the file
-            currentHandle = await currentHandle.getFileHandle(part);
-          } else {
-            // Navigate through directories
+        // For directory handle approach
+        if (directoryHandle) {
+          // Get the directory name from the markdown file path
+          const markdownPathParts = decodePath(filePath).split("/");
+          const markdownDir = markdownPathParts.slice(0, -1).join("/");
+
+          // Get the image path, handling both encoded and unencoded paths
+          const decodedSrc = decodePath(src);
+
+          // Split the path and filter out empty parts
+          const pathParts = decodedSrc.split("/").filter(Boolean);
+
+          // Start from the root directory handle
+          let currentHandle = directoryHandle;
+
+          // First navigate to the markdown file's directory
+          for (const part of markdownDir.split("/").filter(Boolean)) {
             currentHandle = await currentHandle.getDirectoryHandle(part);
           }
-        }
 
-        // Get the image file
-        if (currentHandle.kind === "file") {
-          const file = await currentHandle.getFile();
-          const blob = new Blob([await file.arrayBuffer()], {
-            type: file.type || "image/png",
-          });
-          const url = URL.createObjectURL(blob);
-          setImageSrc(url);
-          setError(null);
+          // Then navigate to the image
+          for (let i = 0; i < pathParts.length; i++) {
+            const part = pathParts[i];
+            if (i === pathParts.length - 1) {
+              // Last part is the file
+              currentHandle = await currentHandle.getFileHandle(part);
+            } else {
+              // Navigate through directories
+              currentHandle = await currentHandle.getDirectoryHandle(part);
+            }
+          }
+
+          // Get the image file
+          if (currentHandle.kind === "file") {
+            const file = await currentHandle.getFile();
+            const blob = new Blob([await file.arrayBuffer()], {
+              type: file.type || "image/png",
+            });
+            const url = URL.createObjectURL(blob);
+            setImageSrc(url);
+            setError(null);
+          }
         }
       } catch (error) {
         console.error("Error loading image:", error);
@@ -68,12 +79,10 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
       }
     };
 
-    if (src && directoryHandle) {
-      loadImage();
-    }
+    loadImage();
 
     return () => {
-      if (imageSrc) {
+      if (imageSrc && imageSrc.startsWith("blob:")) {
         URL.revokeObjectURL(imageSrc);
       }
     };
