@@ -1,50 +1,51 @@
-const CACHE_NAMES = {
-  static: "static-cache-v1",
-  dynamic: "dynamic-cache-v1",
-  offline: "offline-cache-v1",
-};
+// Customize this with your repository name if not served from root
+const GITHUB_PAGES_PATH = "/your-repo-name"; // e.g., '/markdown-reader'
+const BASE_PATH = location.pathname.startsWith(GITHUB_PAGES_PATH)
+  ? GITHUB_PAGES_PATH
+  : "";
 
-// Core resources that must be cached
-const STATIC_RESOURCES = [
-  "/",
-  "/index.html",
-  "/manifest.json",
-  "/offline.html",
+const CACHE_NAME = "markdown-reader-v1";
+
+// Add all routes and assets that need to be cached
+const ASSETS_TO_CACHE = [
+  BASE_PATH + "/",
+  BASE_PATH + "/index.html",
+  BASE_PATH + "/manifest.json",
+  BASE_PATH + "/offline.html",
+  BASE_PATH + "/404.html",
+  // Add your app icons
+  BASE_PATH + "/icon-192x192.png",
+  BASE_PATH + "/icon-512x512.png",
 ];
 
-// Install event - cache core resources
+// Installation - Cache core assets
 self.addEventListener("install", (event) => {
   console.log("[Service Worker] Installing");
 
   event.waitUntil(
-    Promise.all([
-      // Cache static resources
-      caches.open(CACHE_NAMES.static).then((cache) => {
-        console.log("[Service Worker] Caching static resources");
-        return cache.addAll(STATIC_RESOURCES);
-      }),
-      // Cache offline page
-      caches.open(CACHE_NAMES.offline).then((cache) => {
-        return cache.add("/offline.html");
-      }),
-    ]).then(() => {
-      console.log("[Service Worker] Install completed");
-      return self.skipWaiting();
-    })
+    caches
+      .open(CACHE_NAME)
+      .then((cache) => {
+        console.log("[Service Worker] Caching core assets");
+        return cache.addAll(ASSETS_TO_CACHE);
+      })
+      .then(() => {
+        console.log("[Service Worker] Install completed");
+        return self.skipWaiting();
+      })
   );
 });
 
-// Activate event - clean up old caches
+// Activation - Clean up old caches
 self.addEventListener("activate", (event) => {
   console.log("[Service Worker] Activating");
 
   event.waitUntil(
     Promise.all([
-      // Clean up old caches
-      caches.keys().then((keys) => {
+      caches.keys().then((keyList) => {
         return Promise.all(
-          keys.map((key) => {
-            if (!Object.values(CACHE_NAMES).includes(key)) {
+          keyList.map((key) => {
+            if (key !== CACHE_NAME) {
               console.log("[Service Worker] Removing old cache:", key);
               return caches.delete(key);
             }
@@ -57,138 +58,72 @@ self.addEventListener("activate", (event) => {
   );
 });
 
-// Fetch event - handle offline access
+// GitHub Pages specific URL handling
+function adjustGitHubPagesUrl(url) {
+  const requestURL = new URL(url);
+  // Handle case when deployed to GitHub Pages with repository name
+  if (BASE_PATH && !requestURL.pathname.startsWith(BASE_PATH)) {
+    return new Request(BASE_PATH + requestURL.pathname);
+  }
+  return new Request(url);
+}
+
+// Fetch event - Handle offline access and GitHub Pages routing
 self.addEventListener("fetch", (event) => {
-  // Skip non-GET requests
+  // Only handle GET requests
   if (event.request.method !== "GET") return;
 
-  // Get the URL for easier matching
-  const url = new URL(event.request.url);
+  const adjustedRequest = adjustGitHubPagesUrl(event.request.url);
 
-  // Handle different types of requests
-  if (event.request.mode === "navigate") {
-    // Handle navigation requests (HTML pages)
-    event.respondWith(handleNavigationRequest(event.request));
-  } else if (
-    // Handle build assets (JS, CSS)
-    url.pathname.endsWith(".js") ||
-    url.pathname.endsWith(".css") ||
-    // Also cache assets from CDNs we're using
-    url.hostname === "cdnjs.cloudflare.com"
-  ) {
-    event.respondWith(handleAssetRequest(event.request));
-  } else if (event.request.destination === "image") {
-    // Handle image requests
-    event.respondWith(handleImageRequest(event.request));
-  } else {
-    // Handle all other requests
-    event.respondWith(handleResourceRequest(event.request));
-  }
+  event.respondWith(
+    // Try the cache first
+    caches.match(adjustedRequest).then((cachedResponse) => {
+      if (cachedResponse) {
+        return cachedResponse;
+      }
+
+      // If not in cache, try network
+      return fetch(event.request)
+        .then((networkResponse) => {
+          // Check if we received a valid response
+          if (!networkResponse || networkResponse.status !== 200) {
+            if (event.request.mode === "navigate") {
+              // For navigation requests, return offline page
+              return caches.match(BASE_PATH + "/offline.html");
+            }
+            return networkResponse;
+          }
+
+          // Clone the response before caching
+          const responseToCache = networkResponse.clone();
+
+          // Add to cache for future use
+          caches.open(CACHE_NAME).then((cache) => {
+            // Only cache same-origin requests
+            if (event.request.url.startsWith(self.location.origin)) {
+              cache.put(adjustedRequest, responseToCache);
+            }
+          });
+
+          return networkResponse;
+        })
+        .catch((error) => {
+          console.log("[Service Worker] Fetch failed:", error);
+
+          // Check if this is a navigation request
+          if (event.request.mode === "navigate") {
+            // Return the offline page
+            return caches.match(BASE_PATH + "/offline.html");
+          }
+
+          // For other requests, return an error response
+          return new Response("Network error", {status: 408});
+        });
+    })
+  );
 });
 
-// Handle navigation requests
-async function handleNavigationRequest(request) {
-  try {
-    // Try network first
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAMES.dynamic);
-      await cache.put(request, networkResponse.clone());
-      return networkResponse;
-    }
-  } catch (error) {
-    console.log("[Service Worker] Navigation fetch failed:", error);
-  }
-
-  // If network fails, try cache
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
-  // If both fail, show offline page
-  return caches.match("/offline.html");
-}
-
-// Handle build assets (JS, CSS) with cache-first strategy
-async function handleAssetRequest(request) {
-  // Try cache first
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
-  try {
-    // If not in cache, get from network
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAMES.static);
-      await cache.put(request, networkResponse.clone());
-      return networkResponse;
-    }
-  } catch (error) {
-    console.log("[Service Worker] Asset fetch failed:", error);
-  }
-
-  // If both cache and network fail, return error
-  return new Response("Failed to load asset", {status: 404});
-}
-
-// Handle image requests
-async function handleImageRequest(request) {
-  const cachedResponse = await caches.match(request);
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
-  try {
-    const networkResponse = await fetch(request);
-    if (networkResponse.ok) {
-      const cache = await caches.open(CACHE_NAMES.dynamic);
-      await cache.put(request, networkResponse.clone());
-      return networkResponse;
-    }
-  } catch (error) {
-    console.log("[Service Worker] Image fetch failed:", error);
-  }
-
-  // Return placeholder for failed images
-  return new Response(
-    '<svg width="100" height="100" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#ddd"/></svg>',
-    {headers: {"Content-Type": "image/svg+xml"}}
-  );
-}
-
-// Handle other resources
-async function handleResourceRequest(request) {
-  const cachedResponse = await caches.match(request);
-
-  const networkResponsePromise = fetch(request)
-    .then(async (response) => {
-      if (response.ok) {
-        const cache = await caches.open(CACHE_NAMES.dynamic);
-        await cache.put(request, response.clone());
-      }
-      return response;
-    })
-    .catch((error) => {
-      console.log("[Service Worker] Resource fetch failed:", error);
-      return null;
-    });
-
-  if (cachedResponse) {
-    return cachedResponse;
-  }
-
-  const networkResponse = await networkResponsePromise;
-  if (networkResponse) {
-    return networkResponse;
-  }
-
-  return new Response("Network error", {status: 408});
-}
-
-// Listen for messages from the client
+// Handle messages from clients
 self.addEventListener("message", (event) => {
   if (event.data === "skipWaiting") {
     self.skipWaiting();
