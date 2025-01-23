@@ -1,10 +1,10 @@
 // Customize this with your repository name if not served from root
-const GITHUB_PAGES_PATH = "/your-repo-name"; // e.g., '/markdown-reader'
+const GITHUB_PAGES_PATH = "/magpie"; // e.g., '/markdown-reader'
 const BASE_PATH = location.pathname.startsWith(GITHUB_PAGES_PATH)
   ? GITHUB_PAGES_PATH
   : "";
 
-const CACHE_NAME = "markdown-reader-v1";
+const CACHE_NAME = "Magpie";
 
 // Add all routes and assets that need to be cached
 const ASSETS_TO_CACHE = [
