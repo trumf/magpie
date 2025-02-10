@@ -1,0 +1,75 @@
+/* styles/navigation.css */
+.navigation {
+  width: 250px;
+  background: white;
+  border-right: 1px solid #eee;
+  height: 100vh;
+  position: fixed;
+  left: -250px;
+  transition: left 0.3s ease;
+}
+
+.navigation--visible {
+  left: 0;
+}
+
+.navigation__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+}
+
+.navigation__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.navigation__button {
+  padding: 8px;
+  border: none;
+  background: none;
+  cursor: pointer;
+  color: #666;
+  border-radius: 4px;
+}
+
+.navigation__button:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.navigation__files {
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.navigation__file {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.navigation__file:hover {
+  background: #f5f5f5;
+}
+
+.navigation__file--active {
+  background: #e6f2ff;
+  color: #007aff;
+}
+
+.navigation__show-button {
+  position: fixed;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  background: white;
+  border: 1px solid #eee;
+  border-left: none;
+  padding: 12px 8px;
+  cursor: pointer;
+  border-radius: 0 4px 4px 0;
+  box-shadow: 2px 0 4px rgba(0, 0, 0, 0.1);
+}

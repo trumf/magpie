@@ -1,5 +1,75 @@
 // src/services/DatabaseService.js
 
+// services/DatabaseService.js
+class DatabaseService {
+  constructor() {
+    this.dbName = "readerDB";
+    this.version = 1;
+    this.db = null;
+  }
+
+  async initialize() {
+    if (this.db) return;
+
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(this.dbName, this.version);
+
+      request.onerror = () => reject(new Error("Failed to open database"));
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+        resolve();
+      };
+
+      request.onupgradeneeded = (event) => {
+        const db = event.target.result;
+
+        if (!db.objectStoreNames.contains("annotations")) {
+          const store = db.createObjectStore("annotations", {
+            keyPath: "id",
+            autoIncrement: true,
+          });
+          store.createIndex("articleId", "articleId", {unique: false});
+          store.createIndex("createdAt", "createdAt", {unique: false});
+        }
+      };
+    });
+  }
+
+  async addAnnotation(annotation) {
+    const store = this.db
+      .transaction(["annotations"], "readwrite")
+      .objectStore("annotations");
+
+    return await store.add({
+      ...annotation,
+      createdAt: new Date().toISOString(),
+    });
+  }
+
+  async getAnnotations(articleId) {
+    const store = this.db
+      .transaction(["annotations"], "readonly")
+      .objectStore("annotations");
+
+    return new Promise((resolve, reject) => {
+      const request = store.index("articleId").getAll(articleId);
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(new Error("Failed to get annotations"));
+    });
+  }
+}
+
+let instance = null;
+
+export const getDatabase = async () => {
+  if (!instance) {
+    instance = new DatabaseService();
+    await instance.initialize();
+  }
+  return instance;
+};
+
+/* 
 class DatabaseService {
   constructor() {
     this.dbName = "markdownDB";
@@ -141,3 +211,4 @@ class DatabaseService {
 
 const databaseService = new DatabaseService();
 export default databaseService;
+*/

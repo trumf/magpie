@@ -1,3 +1,19 @@
+// App.js
+import {AppProvider} from "./contexts/AppContext";
+import Reader from "./components/reader/Reader";
+import "./styles/global.css";
+
+const App = () => {
+  return (
+    <AppProvider>
+      <Reader />
+    </AppProvider>
+  );
+};
+
+export default App;
+
+/*
 import MarkdownReader from "./MarkdownReader";
 import "./reset.css";
 import "./App.css";
@@ -27,3 +43,4 @@ function App() {
 }
 
 export default App;
+*/
