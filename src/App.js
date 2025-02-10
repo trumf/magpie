@@ -1,5 +1,6 @@
 import MarkdownReader from "./MarkdownReader";
 import "./reset.css";
+import "./App.css";
 // Add this to your index.js or App.js
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {

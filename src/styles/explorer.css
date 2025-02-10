@@ -81,8 +81,8 @@
 
 .explorer__toggle {
   position: fixed;
-  bottom: 16px;
-  left: 16px;
+  bottom: 80px;
+  left: 12px;
   width: 40px;
   height: 40px;
   background-color: white;
