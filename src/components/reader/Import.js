@@ -1,39 +1,41 @@
 // components/reader/Import.js
-import React, {useState, useRef} from "react";
+import React, {useState} from "react";
 import {useApp} from "../../contexts/AppContext";
-import {Upload} from "lucide-react";
+import FileService from "../../services/FileService";
+import {Upload, Folder} from "lucide-react";
 
 const Import = () => {
   const {handleImport} = useApp();
   const [error, setError] = useState("");
-  const fileInputRef = useRef(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const onFileSelect = async (event) => {
+  const handleDirectorySelect = async () => {
     try {
       setError("");
-      await handleImport(Array.from(event.target.files));
+      setIsLoading(true);
+
+      const handle = await window.showDirectoryPicker();
+      console.log("Selected directory handle:", handle);
+
+      const result = await FileService.processDirectory(handle);
+      await handleImport(result.files, handle); // Pass both files and handle
     } catch (error) {
       console.error("Import error:", error);
-      setError("Import failed. Please try again.");
+      setError("Failed to import directory. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   return (
     <div className="import">
-      <input
-        ref={fileInputRef}
-        type="file"
-        onChange={onFileSelect}
-        accept=".md"
-        multiple
-        style={{display: "none"}}
-      />
       <button
         className="import__button"
-        onClick={() => fileInputRef.current?.click()}
+        onClick={handleDirectorySelect}
+        disabled={isLoading}
       >
-        <Upload />
-        Import Files
+        <Folder />
+        {isLoading ? "Importing..." : "Select Notion Export Folder"}
       </button>
       {error && <div className="import__error">{error}</div>}
     </div>

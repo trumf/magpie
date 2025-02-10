@@ -1,30 +1,17 @@
 // services/FileService.js
 class FileService {
-  async processFiles(files) {
-    const results = [];
-
-    for (const file of files) {
-      if (file.name.endsWith(".md")) {
-        const content = await file.text();
-        results.push({
-          name: file.name,
-          path: file.name,
-          content,
-          type: "file",
-        });
-      }
-    }
-
-    return this.organizeFiles(results);
-  }
-
   async processDirectory(handle) {
+    console.log("Processing directory with handle:", handle);
     const files = [];
     await this.scanDirectory(handle, "", files);
-    return this.organizeFiles(files);
+    return {
+      files: this.organizeFiles(files),
+      directoryHandle: handle, // Return the handle for root access
+    };
   }
 
   async scanDirectory(handle, path = "", results = []) {
+    console.log("Scanning directory:", path);
     for await (const entry of handle.values()) {
       const entryPath = path ? `${path}/${entry.name}` : entry.name;
 
@@ -73,6 +60,17 @@ class FileService {
     });
 
     return root;
+  }
+
+  // Method to handle directory selection
+  async handleDirectorySelect() {
+    try {
+      const handle = await window.showDirectoryPicker();
+      return this.processDirectory(handle);
+    } catch (error) {
+      console.error("Error selecting directory:", error);
+      throw error;
+    }
   }
 }
 

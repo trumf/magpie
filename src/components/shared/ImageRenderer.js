@@ -16,6 +16,12 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
 
   useEffect(() => {
     const loadImage = async () => {
+      console.log("Loading image:", {
+        src,
+        filePath,
+        hasDirectoryHandle: !!directoryHandle,
+      });
+
       try {
         if (!src) return;
 
@@ -30,17 +36,28 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
           const decodedSrc = decodePath(src);
           const pathParts = decodedSrc.split("/").filter(Boolean);
 
+          console.log("Image path details:", {
+            markdownDir,
+            decodedSrc,
+            pathParts,
+          });
+
           let currentHandle = directoryHandle;
 
+          // Navigate to markdown directory
           for (const part of markdownDir.split("/").filter(Boolean)) {
+            console.log("Navigating to directory:", part);
             currentHandle = await currentHandle.getDirectoryHandle(part);
           }
 
+          // Navigate to image
           for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
             if (i === pathParts.length - 1) {
+              console.log("Getting file:", part);
               currentHandle = await currentHandle.getFileHandle(part);
             } else {
+              console.log("Navigating to subdirectory:", part);
               currentHandle = await currentHandle.getDirectoryHandle(part);
             }
           }
@@ -51,9 +68,12 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
               type: file.type || "image/png",
             });
             const url = URL.createObjectURL(blob);
+            console.log("Successfully created image URL:", url);
             setImageSrc(url);
             setError(null);
           }
+        } else {
+          console.log("No directory handle available");
         }
       } catch (error) {
         console.error("Error loading image:", error);
@@ -85,7 +105,7 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
           loading="lazy"
         />
       ) : (
-        <div className="markdown__image-loading">Loading image...</div>
+        <div className="markdown__image-loading">Loading image... {src}</div>
       )}
     </div>
   );

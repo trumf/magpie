@@ -10,58 +10,42 @@ export const AppProvider = ({children}) => {
   const [currentFile, setCurrentFile] = useState(null);
   const [isImporting, setIsImporting] = useState(true);
   const [annotations, setAnnotations] = useState({});
+  const [directoryHandle, setDirectoryHandle] = useState(null);
 
   const handleImport = useCallback(async (importedFiles, dirHandle) => {
+    console.log("Importing with directory handle:", dirHandle);
     try {
-      let processedFiles;
-      if (dirHandle) {
-        processedFiles = await FileService.processDirectory(dirHandle);
-      } else {
-        processedFiles = await FileService.processFiles(importedFiles);
-      }
-      setFiles(processedFiles);
+      setFiles(importedFiles);
+      setDirectoryHandle(dirHandle);
       setIsImporting(false);
     } catch (error) {
       console.error("Import error:", error);
+      throw error;
     }
   }, []);
 
-  const handleFileSelect = useCallback(async (file) => {
-    setCurrentFile(file);
-    const db = await getDatabase();
-    const fileAnnotations = await db.getAnnotations(file.path);
-    setAnnotations(fileAnnotations);
-  }, []);
-
-  const addAnnotation = useCallback(
-    async (annotation) => {
-      try {
-        const db = await getDatabase();
-        await db.addAnnotation(annotation);
-        const updatedAnnotations = await db.getAnnotations(currentFile.path);
-        setAnnotations(updatedAnnotations);
-      } catch (error) {
-        console.error("Annotation error:", error);
-      }
+  const handleFileSelect = useCallback(
+    async (file) => {
+      console.log("Selecting file with directory handle:", directoryHandle);
+      setCurrentFile(file);
+      const db = await getDatabase();
+      const fileAnnotations = await db.getAnnotations(file.path);
+      setAnnotations(fileAnnotations);
     },
-    [currentFile]
+    [directoryHandle]
   );
 
-  return (
-    <AppContext.Provider
-      value={{
-        files,
-        currentFile,
-        isImporting,
-        annotations,
-        handleImport,
-        handleFileSelect,
-        addAnnotation,
-      }}
-    >
-      {children}
-    </AppContext.Provider>
-  );
+  const value = {
+    files,
+    currentFile,
+    isImporting,
+    annotations,
+    directoryHandle,
+    handleImport,
+    handleFileSelect,
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 };
 
 export const useApp = () => {
