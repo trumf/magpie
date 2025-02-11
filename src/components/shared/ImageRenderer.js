@@ -25,7 +25,12 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
       try {
         if (!src) return;
 
-        if (src.startsWith("blob:")) {
+        // If the src is already a blob URL or an absolute URL, use it directly.
+        if (
+          src.startsWith("blob:") ||
+          src.startsWith("http://") ||
+          src.startsWith("https://")
+        ) {
           setImageSrc(src);
           return;
         }
@@ -50,7 +55,7 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
             currentHandle = await currentHandle.getDirectoryHandle(part);
           }
 
-          // Navigate to image
+          // Navigate to image file
           for (let i = 0; i < pathParts.length; i++) {
             const part = pathParts[i];
             if (i === pathParts.length - 1) {

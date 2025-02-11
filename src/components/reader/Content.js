@@ -5,7 +5,7 @@ import MarkdownRenderer from "../shared/MarkdownRenderer";
 import AnnotationLayer from "../shared/AnnotationLayer";
 
 const Content = () => {
-  const {currentFile, annotations, directoryHandle} = useApp();
+  const {currentFile, directoryHandle} = useApp();
 
   return (
     <div className="content">
@@ -13,9 +13,7 @@ const Content = () => {
         content={currentFile.content}
         directoryHandle={directoryHandle}
         filePath={currentFile.path}
-        annotations={annotations}
       />
-      <AnnotationLayer />
     </div>
   );
 };

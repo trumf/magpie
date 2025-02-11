@@ -4,6 +4,7 @@ import {useApp} from "../../contexts/AppContext";
 import Navigation from "./Navigation";
 import Content from "./Content";
 import Import from "./Import";
+import AnnotationLayer from "../shared/AnnotationLayer";
 
 const Reader = () => {
   const {isImporting, currentFile} = useApp();
@@ -27,6 +28,7 @@ const Reader = () => {
           <div className="reader__empty">Select a file</div>
         )}
       </main>
+      <AnnotationLayer />
     </div>
   );
 };
