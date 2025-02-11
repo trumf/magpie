@@ -4,16 +4,26 @@ import {useApp} from "../../contexts/AppContext";
 import {PanelLeftClose, Upload, Settings, ChevronRight} from "lucide-react";
 import "../../styles/navigation.css";
 
-const Navigation = ({isVisible, setIsVisible}) => {
-  const {files, currentFile, handleFileSelect} = useApp();
+const Navigation = () => {
+  const {
+    files,
+    currentFile,
+    handleFileSelect,
+    isSidebarVisible,
+    setIsSidebarVisible,
+  } = useApp();
 
   return (
     <>
-      <nav className={`navigation ${isVisible ? "navigation--visible" : ""}`}>
+      <nav
+        className={`navigation ${
+          isSidebarVisible ? "navigation--visible" : ""
+        }`}
+      >
         <div className="navigation__header">
           <button
             className="navigation__toggle"
-            onClick={() => setIsVisible(false)}
+            onClick={() => setIsSidebarVisible(false)}
           >
             <PanelLeftClose />
           </button>
@@ -44,10 +54,10 @@ const Navigation = ({isVisible, setIsVisible}) => {
         </div>
       </nav>
 
-      {!isVisible && (
+      {!isSidebarVisible && (
         <button
           className="navigation__show-button"
-          onClick={() => setIsVisible(true)}
+          onClick={() => setIsSidebarVisible(true)}
         >
           <ChevronRight />
         </button>

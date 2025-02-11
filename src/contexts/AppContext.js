@@ -16,6 +16,7 @@ export const AppProvider = ({children}) => {
   const [currentFile, setCurrentFile] = useState(null);
   const [isImporting, setIsImporting] = useState(true);
   const [directoryHandle, setDirectoryHandle] = useState(null);
+  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
   // Annotation states
   const [annotationService, setAnnotationService] = useState(null);
@@ -175,6 +176,8 @@ export const AppProvider = ({children}) => {
         setAnnotationText,
         saveAnnotation,
         cancelAnnotation,
+        isSidebarVisible,
+        setIsSidebarVisible,
       }}
     >
       {children}

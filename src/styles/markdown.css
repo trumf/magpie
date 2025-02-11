@@ -36,6 +36,10 @@
   color: #6b7280;
 }
 
+.content {
+  padding-bottom: 2rem;
+}
+
 /* styles/markdown.css */
 .annotation-panel {
   position: fixed;

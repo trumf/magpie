@@ -1,14 +1,17 @@
 // components/reader/Reader.js
-import React, {useState} from "react";
+import React from "react";
 import {useApp} from "../../contexts/AppContext";
+import {useFileNavigation} from "../../hooks/useFileNavigation";
 import Navigation from "./Navigation";
 import Content from "./Content";
 import Import from "./Import";
 import AnnotationLayer from "../shared/AnnotationLayer";
+import SwipeableContainer from "../shared/SwipeableContainer";
 
 const Reader = () => {
-  const {isImporting, currentFile} = useApp();
-  const [isNavVisible, setIsNavVisible] = useState(true);
+  const {isImporting, currentFile, isSidebarVisible} = useApp();
+  const {hasNext, hasPrevious, navigateNext, navigatePrevious} =
+    useFileNavigation();
 
   if (isImporting) {
     return <Import />;
@@ -16,14 +19,21 @@ const Reader = () => {
 
   return (
     <div className="reader">
-      <Navigation isVisible={isNavVisible} setIsVisible={setIsNavVisible} />
+      <Navigation />
       <main
         className={`reader__content ${
-          isNavVisible ? "reader__content--shifted" : ""
+          isSidebarVisible ? "reader__content--shifted" : ""
         }`}
       >
         {currentFile ? (
-          <Content />
+          <SwipeableContainer
+            onSwipeLeft={navigateNext}
+            onSwipeRight={navigatePrevious}
+            canSwipeLeft={hasNext}
+            canSwipeRight={hasPrevious}
+          >
+            <Content />
+          </SwipeableContainer>
         ) : (
           <div className="reader__empty">Select a file</div>
         )}

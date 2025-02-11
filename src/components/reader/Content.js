@@ -2,7 +2,6 @@
 import React from "react";
 import {useApp} from "../../contexts/AppContext";
 import MarkdownRenderer from "../shared/MarkdownRenderer";
-import AnnotationLayer from "../shared/AnnotationLayer";
 
 const Content = () => {
   const {currentFile, directoryHandle} = useApp();
