@@ -6,6 +6,10 @@ import MarkdownRenderer from "../shared/MarkdownRenderer";
 const Content = () => {
   const {currentFile, directoryHandle} = useApp();
 
+  if (!currentFile?.content) {
+    return <div className="content__error">Unable to load file content</div>;
+  }
+
   return (
     <div className="content">
       <MarkdownRenderer
@@ -17,4 +21,4 @@ const Content = () => {
   );
 };
 
-export default Content;
+export default React.memo(Content);

@@ -10,75 +10,95 @@ const decodePath = (path) => {
   }
 };
 
+const isExternalUrl = (url) => {
+  return url.startsWith("http://") || url.startsWith("https://");
+};
+
 const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
   const [imageSrc, setImageSrc] = useState("");
   const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadImage = async () => {
-      console.log("Loading image:", {
-        src,
-        filePath,
-        hasDirectoryHandle: !!directoryHandle,
-      });
-
       try {
         if (!src) return;
+        console.log("Loading image:", {
+          src,
+          filePath,
+          hasDirectoryHandle: !!directoryHandle,
+        });
 
-        // If the src is already a blob URL or an absolute URL, use it directly.
-        if (
-          src.startsWith("blob:") ||
-          src.startsWith("http://") ||
-          src.startsWith("https://")
-        ) {
+        // Handle external URLs
+        if (isExternalUrl(src)) {
           setImageSrc(src);
           return;
         }
 
+        // Handle ZIP file images (blob URLs)
+        if (src.startsWith("blob:")) {
+          setImageSrc(src);
+          return;
+        }
+
+        // Handle local files through directory handle
         if (directoryHandle) {
-          const markdownPathParts = decodePath(filePath).split("/");
-          const markdownDir = markdownPathParts.slice(0, -1).join("/");
-          const decodedSrc = decodePath(src);
-          const pathParts = decodedSrc.split("/").filter(Boolean);
+          try {
+            // Get the directory parts from the markdown file path
+            const markdownPathParts = decodePath(filePath).split("/");
+            const markdownDir = markdownPathParts.slice(0, -1).join("/");
 
-          console.log("Image path details:", {
-            markdownDir,
-            decodedSrc,
-            pathParts,
-          });
+            // Get the image path relative to the markdown file
+            const decodedSrc = decodePath(src);
+            const imagePath = decodedSrc.startsWith("/")
+              ? decodedSrc.slice(1)
+              : decodedSrc;
 
-          let currentHandle = directoryHandle;
+            console.log("Image path details:", {
+              markdownDir,
+              imagePath,
+              decodedSrc,
+            });
 
-          // Navigate to markdown directory
-          for (const part of markdownDir.split("/").filter(Boolean)) {
-            console.log("Navigating to directory:", part);
-            currentHandle = await currentHandle.getDirectoryHandle(part);
-          }
+            let currentHandle = directoryHandle;
 
-          // Navigate to image file
-          for (let i = 0; i < pathParts.length; i++) {
-            const part = pathParts[i];
-            if (i === pathParts.length - 1) {
-              console.log("Getting file:", part);
-              currentHandle = await currentHandle.getFileHandle(part);
-            } else {
-              console.log("Navigating to subdirectory:", part);
-              currentHandle = await currentHandle.getDirectoryHandle(part);
+            // First navigate to markdown file's directory if needed
+            if (markdownDir) {
+              for (const part of markdownDir.split("/").filter(Boolean)) {
+                console.log("Navigating to directory:", part);
+                currentHandle = await currentHandle.getDirectoryHandle(part);
+              }
             }
-          }
 
-          if (currentHandle.kind === "file") {
+            // Then navigate to the image
+            const imagePathParts = imagePath.split("/").filter(Boolean);
+            for (let i = 0; i < imagePathParts.length; i++) {
+              const part = imagePathParts[i];
+              if (i === imagePathParts.length - 1) {
+                console.log("Getting file:", part);
+                currentHandle = await currentHandle.getFileHandle(part);
+              } else {
+                console.log("Navigating to subdirectory:", part);
+                currentHandle = await currentHandle.getDirectoryHandle(part);
+              }
+            }
+
+            // Get the image file and create a blob URL
             const file = await currentHandle.getFile();
             const blob = new Blob([await file.arrayBuffer()], {
               type: file.type || "image/png",
             });
             const url = URL.createObjectURL(blob);
-            console.log("Successfully created image URL:", url);
+            console.log("Created blob URL:", url);
             setImageSrc(url);
             setError(null);
+          } catch (error) {
+            console.error("Error loading local image:", error);
+            // If local file fails, try using the src directly
+            setImageSrc(src);
           }
         } else {
-          console.log("No directory handle available");
+          // No directory handle, try using src directly
+          setImageSrc(src);
         }
       } catch (error) {
         console.error("Error loading image:", error);
@@ -110,7 +130,7 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
           loading="lazy"
         />
       ) : (
-        <div className="markdown__image-loading">Loading image... {src}</div>
+        <div className="markdown__image-loading">Loading image...</div>
       )}
     </div>
   );

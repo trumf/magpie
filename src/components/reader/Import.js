@@ -1,43 +1,177 @@
 // components/reader/Import.js
-import React, {useState} from "react";
+import React, {useState, useRef} from "react";
+import {Upload, Folder, FileText, AlertCircle, HelpCircle} from "lucide-react";
 import {useApp} from "../../contexts/AppContext";
-import FileService from "../../services/FileService";
-import {Upload, Folder} from "lucide-react";
+import ImportService from "../../services/ImportService";
+import "../../styles/import.css";
 
 const Import = () => {
   const {handleImport} = useApp();
   const [error, setError] = useState("");
-  const [isLoading, setIsLoading] = useState(false);
+  const [importing, setImporting] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
+  const zipInputRef = useRef(null);
+  const fileInputRef = useRef(null);
+
+  const handleZipUpload = async (event) => {
+    try {
+      setError("");
+      setImporting(true);
+      const file = event.target.files[0];
+
+      if (!file || !file.name.endsWith(".zip")) {
+        setError("Please select a ZIP file containing your Notion export");
+        return;
+      }
+
+      const files = await ImportService.processZipFile(file);
+      await handleImport(files, null);
+    } catch (error) {
+      console.error("Error processing ZIP:", error);
+      setError(
+        "Error processing ZIP file. Please make sure its a valid Notion export."
+      );
+    } finally {
+      setImporting(false);
+    }
+  };
 
   const handleDirectorySelect = async () => {
     try {
       setError("");
-      setIsLoading(true);
-
+      setImporting(true);
       const handle = await window.showDirectoryPicker();
-      console.log("Selected directory handle:", handle);
-
-      const result = await FileService.processDirectory(handle);
-      await handleImport(result.files, handle); // Pass both files and handle
+      const files = await ImportService.processDirectory(handle);
+      await handleImport(files, handle);
     } catch (error) {
-      console.error("Import error:", error);
-      setError("Failed to import directory. Please try again.");
+      console.error("Error selecting directory:", error);
+      setError(
+        "Error accessing directory. Please try uploading a ZIP file instead."
+      );
     } finally {
-      setIsLoading(false);
+      setImporting(false);
+    }
+  };
+
+  const handleFileSelect = async (event) => {
+    try {
+      setError("");
+      setImporting(true);
+      const files = await ImportService.processFiles(
+        Array.from(event.target.files)
+      );
+
+      if (files.length === 0) {
+        setError("No markdown files found. Please select .md files.");
+        return;
+      }
+
+      await handleImport(files, null);
+    } catch (error) {
+      console.error("Error processing files:", error);
+      setError("Error processing files. Please try again.");
+    } finally {
+      setImporting(false);
     }
   };
 
   return (
     <div className="import">
+      <div className="import__container">
+        <div className="import__primary">
+          <input
+            type="file"
+            ref={zipInputRef}
+            onChange={handleZipUpload}
+            accept=".zip"
+            style={{display: "none"}}
+          />
+          <button
+            onClick={() => zipInputRef.current?.click()}
+            disabled={importing}
+            className="import__button import__button--primary"
+          >
+            <Upload size={20} />
+            {importing ? "Importing..." : "Import Notion Export (ZIP)"}
+          </button>
+          <p className="import__description">
+            Recommended: Export from Notion, zip the folder, then upload here
+          </p>
+        </div>
+
+        <div className="import__buttons-group">
+          {ImportService.isDirectoryPickerSupported() && (
+            <button
+              onClick={handleDirectorySelect}
+              disabled={importing}
+              className="import__button import__button--secondary"
+            >
+              <Folder size={18} />
+              Select Directory
+            </button>
+          )}
+
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileSelect}
+            accept=".md"
+            multiple
+            style={{display: "none"}}
+          />
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="import__button import__button--secondary"
+          >
+            <FileText size={18} />
+            Select Files
+          </button>
+        </div>
+      </div>
+
       <button
-        className="import__button"
-        onClick={handleDirectorySelect}
-        disabled={isLoading}
+        onClick={() => setShowHelp(!showHelp)}
+        className="import__help-button"
       >
-        <Folder />
-        {isLoading ? "Importing..." : "Select Notion Export Folder"}
+        <HelpCircle size={16} />
+        How to import?
       </button>
-      {error && <div className="import__error">{error}</div>}
+
+      {showHelp && (
+        <div className="import__help">
+          <h3 className="import__help-title">Import Options:</h3>
+          <ol className="import__help-list">
+            <li className="import__help-item">
+              <strong>ZIP Import (Recommended):</strong>
+              <ul className="import__help-sublist">
+                <li>Export your pages from Notion</li>
+                <li>Zip the exported folder</li>
+                <li>Upload the ZIP file here</li>
+              </ul>
+            </li>
+            {ImportService.isDirectoryPickerSupported() && (
+              <li className="import__help-item">
+                <strong>Directory Import:</strong>
+                <br />
+                Select an entire folder (desktop browsers only)
+              </li>
+            )}
+            <li className="import__help-item">
+              <strong>File Import:</strong>
+              <br />
+              Select one or more markdown files directly
+            </li>
+          </ol>
+        </div>
+      )}
+
+      {error && (
+        <div className="import__error">
+          <AlertCircle size={18} />
+          {error}
+        </div>
+      )}
     </div>
   );
 };

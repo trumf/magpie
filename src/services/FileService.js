@@ -1,13 +1,30 @@
 // services/FileService.js
 class FileService {
-  async processDirectory(handle) {
-    console.log("Processing directory with handle:", handle);
-    const files = [];
-    await this.scanDirectory(handle, "", files);
-    return {
-      files: this.organizeFiles(files),
-      directoryHandle: handle, // Return the handle for root access
-    };
+  async processFiles(files) {
+    const results = [];
+
+    for (const file of files) {
+      if (file.name.endsWith(".md")) {
+        try {
+          const content = await file.text();
+          console.log(`Processing file ${file.name}:`, {
+            hasContent: !!content,
+            contentLength: content?.length,
+          });
+
+          results.push({
+            name: file.name,
+            path: file.name,
+            content,
+            type: "file",
+          });
+        } catch (error) {
+          console.error(`Error processing file ${file.name}:`, error);
+        }
+      }
+    }
+
+    return this.organizeFiles(results);
   }
 
   async scanDirectory(handle, path = "", results = []) {
@@ -69,6 +86,27 @@ class FileService {
       return this.processDirectory(handle);
     } catch (error) {
       console.error("Error selecting directory:", error);
+      throw error;
+    }
+  }
+
+  async processDirectory(handle, path = "") {
+    console.log("Processing directory:", {handle, path});
+    const files = [];
+
+    try {
+      await this.scanDirectory(handle, "", files);
+      console.log(
+        "Processed files:",
+        files.map((f) => ({
+          name: f.name,
+          hasContent: !!f.content,
+        }))
+      );
+
+      return this.organizeFiles(files);
+    } catch (error) {
+      console.error("Error processing directory:", error);
       throw error;
     }
   }
