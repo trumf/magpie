@@ -1,0 +1,19 @@
+/* styles/content.css */
+.content__error {
+  padding: 1rem;
+  margin: 1rem;
+  background-color: #fef2f2;
+  color: #ef4444;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.markdown {
+  padding: 1rem;
+}
+
+.markdown__empty {
+  text-align: center;
+  color: #6b7280;
+  padding: 2rem;
+}
