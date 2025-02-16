@@ -6,8 +6,8 @@ import React, {
   useCallback,
   useEffect,
 } from "react";
-import FileService from "../services/FileService";
 import {getAnnotationService} from "../services/AnnotationService";
+import OfflineService from "../services/OfflineService";
 
 const AppContext = createContext(null);
 
@@ -18,12 +18,37 @@ export const AppProvider = ({children}) => {
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
 
+  //offline PWA support
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [cachedFiles, setCachedFiles] = useState([]);
+
   // Annotation states
   const [annotationService, setAnnotationService] = useState(null);
   const [annotations, setAnnotations] = useState({});
   const [selectedParagraphs, setSelectedParagraphs] = useState(new Set());
   const [annotationText, setAnnotationText] = useState("");
   const [isAnnotating, setIsAnnotating] = useState(false);
+
+  const loadAnnotations = useCallback(
+    async (articleId) => {
+      if (!annotationService) return;
+      try {
+        const articleAnnotations =
+          await annotationService.getAnnotationsForArticle(articleId);
+        const annotationMap = {};
+        articleAnnotations.forEach((annotation) => {
+          if (!annotationMap[annotation.paragraphIndex]) {
+            annotationMap[annotation.paragraphIndex] = [];
+          }
+          annotationMap[annotation.paragraphIndex].push(annotation);
+        });
+        setAnnotations(annotationMap);
+      } catch (error) {
+        console.error("Failed to load annotations:", error);
+      }
+    },
+    [annotationService]
+  );
 
   useEffect(() => {
     const initService = async () => {
@@ -33,10 +58,21 @@ export const AppProvider = ({children}) => {
     initService();
   }, []);
 
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
+    };
+  }, []);
+
   const handleParagraphClick = useCallback(
     (index) => {
-      console.log("Paragraph clicked:", index);
-
       if (!isAnnotating) {
         setIsAnnotating(true);
         setSelectedParagraphs(new Set([index]));
@@ -87,28 +123,13 @@ export const AppProvider = ({children}) => {
     } catch (error) {
       console.error("Failed to save annotation:", error);
     }
-  }, [annotationService, currentFile, selectedParagraphs, annotationText]);
-
-  const loadAnnotations = useCallback(
-    async (articleId) => {
-      if (!annotationService) return;
-      try {
-        const articleAnnotations =
-          await annotationService.getAnnotationsForArticle(articleId);
-        const annotationMap = {};
-        articleAnnotations.forEach((annotation) => {
-          if (!annotationMap[annotation.paragraphIndex]) {
-            annotationMap[annotation.paragraphIndex] = [];
-          }
-          annotationMap[annotation.paragraphIndex].push(annotation);
-        });
-        setAnnotations(annotationMap);
-      } catch (error) {
-        console.error("Failed to load annotations:", error);
-      }
-    },
-    [annotationService]
-  );
+  }, [
+    annotationService,
+    currentFile,
+    selectedParagraphs,
+    annotationText,
+    loadAnnotations,
+  ]);
 
   const handleImport = useCallback(async (importedFiles, dirHandle) => {
     try {
@@ -125,39 +146,26 @@ export const AppProvider = ({children}) => {
       setCurrentFile(file);
       if (file) {
         await loadAnnotations(file.path);
+        await OfflineService.cacheMarkdownFile(file);
       }
     },
     [loadAnnotations]
   );
+
+  useEffect(() => {
+    const loadCachedFiles = async () => {
+      const cached = await OfflineService.getCachedFiles();
+      setCachedFiles(cached);
+    };
+
+    loadCachedFiles();
+  }, []);
 
   const cancelAnnotation = useCallback(() => {
     setSelectedParagraphs(new Set());
     setAnnotationText("");
     setIsAnnotating(false);
   }, []);
-
-  const value = {
-    files,
-    currentFile,
-    isImporting,
-    directoryHandle,
-    annotations,
-    selectedParagraphs,
-    isAnnotating,
-    annotationText,
-    handleImport,
-    handleFileSelect,
-    handleParagraphClick,
-    setAnnotationText,
-    saveAnnotation,
-    cancelAnnotation,
-  };
-
-  console.log("Context state:", {
-    hasCurrentFile: !!currentFile,
-    isAnnotating,
-    selectedParagraphsCount: selectedParagraphs.size,
-  });
 
   return (
     <AppContext.Provider
@@ -178,6 +186,8 @@ export const AppProvider = ({children}) => {
         cancelAnnotation,
         isSidebarVisible,
         setIsSidebarVisible,
+        isOnline,
+        cachedFiles,
       }}
     >
       {children}

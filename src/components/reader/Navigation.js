@@ -2,7 +2,7 @@
 import React from "react";
 import {useApp} from "../../contexts/AppContext";
 import {
-  PanelLeftClose,
+  X,
   Upload,
   Settings,
   ChevronRight,
@@ -10,9 +10,9 @@ import {
   Folder,
   FileText,
 } from "lucide-react";
+import NavigationService from "../../services/NavigationService";
 import "../../styles/navigation.css";
 
-// Separate component for rendering file/directory items
 const FileItem = ({item, level = 0, currentFile, handleFileSelect}) => {
   const [isExpanded, setIsExpanded] = React.useState(false);
   const isDirectory = item.type === "directory";
@@ -21,6 +21,8 @@ const FileItem = ({item, level = 0, currentFile, handleFileSelect}) => {
     e.stopPropagation();
     setIsExpanded(!isExpanded);
   };
+
+  const displayTitle = NavigationService.getDisplayTitle(item);
 
   return (
     <>
@@ -45,11 +47,10 @@ const FileItem = ({item, level = 0, currentFile, handleFileSelect}) => {
             </button>
           )}
           {isDirectory ? <Folder size={16} /> : <FileText size={16} />}
-          <span className="navigation__item-name">{item.name}</span>
+          <span className="navigation__item-name">{displayTitle}</span>
         </div>
       </div>
 
-      {/* Render children if directory is expanded */}
       {isDirectory && isExpanded && item.children && (
         <div className="navigation__children">
           {item.children.map((child) => (
@@ -76,8 +77,16 @@ const Navigation = () => {
     setIsSidebarVisible,
   } = useApp();
 
+  const handleOverlayClick = () => {
+    setIsSidebarVisible(false);
+  };
+
   return (
     <>
+      {isSidebarVisible && (
+        <div className="navigation__overlay" onClick={handleOverlayClick} />
+      )}
+
       <nav
         className={`navigation ${
           isSidebarVisible ? "navigation--visible" : ""
@@ -85,10 +94,10 @@ const Navigation = () => {
       >
         <div className="navigation__header">
           <button
-            className="navigation__toggle"
+            className="navigation__close"
             onClick={() => setIsSidebarVisible(false)}
           >
-            <PanelLeftClose />
+            <X size={24} />
           </button>
           <div className="navigation__actions">
             <button className="navigation__button">
@@ -111,15 +120,6 @@ const Navigation = () => {
           ))}
         </div>
       </nav>
-
-      {!isSidebarVisible && (
-        <button
-          className="navigation__show-button"
-          onClick={() => setIsSidebarVisible(true)}
-        >
-          <ChevronRight />
-        </button>
-      )}
     </>
   );
 };

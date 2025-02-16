@@ -1,17 +1,6 @@
 // components/shared/SwipeableContainer.js
 import React, {useState, useEffect, useCallback} from "react";
-import {ChevronLeft, ChevronRight} from "lucide-react";
 import "../../styles/swipeable.css";
-
-const NavigationButton = ({direction, onClick, children}) => (
-  <button
-    onClick={onClick}
-    className="swipeable__button"
-    aria-label={`${direction} article`}
-  >
-    {children}
-  </button>
-);
 
 const SwipeableContainer = ({
   onSwipeLeft,
@@ -73,22 +62,6 @@ const SwipeableContainer = ({
       onTouchEnd={onTouchEnd}
     >
       {children}
-
-      <div className="swipeable__nav swipeable__nav--left">
-        {canSwipeRight && (
-          <NavigationButton direction="previous" onClick={onSwipeRight}>
-            <ChevronLeft className="swipeable__icon" />
-          </NavigationButton>
-        )}
-      </div>
-
-      <div className="swipeable__nav swipeable__nav--right">
-        {canSwipeLeft && (
-          <NavigationButton direction="next" onClick={onSwipeLeft}>
-            <ChevronRight className="swipeable__icon" />
-          </NavigationButton>
-        )}
-      </div>
     </div>
   );
 };
