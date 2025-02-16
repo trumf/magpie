@@ -1,62 +1,33 @@
-/* Reader */
+/* styles/reader.css */
 .reader {
-  display: flex;
-  height: 100vh;
-  width: 100%;
-  background-color: white;
-}
-
-.reader__welcome {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  width: 100%;
-}
-
-.reader__article {
-  display: flex;
-  align-items: flex-start;
-}
-
-.reader__button {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  background-color: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 14px;
+  min-height: 100vh;
+  background: white;
+  position: relative;
 }
 
 .reader__content {
-  display: flex;
-  flex: 1;
-  position: relative;
-  align-items: flex-start;
+  min-height: calc(100vh - 64px); /* Subtract header height */
+  margin-top: 64px; /* Add margin for header */
+  transition: margin-left 0.3s ease;
 }
 
-.reader__main {
-  flex: 1;
-  overflow-y: auto;
-  text-align: left;
+.reader__content--shifted {
+  margin-left: 300px;
 }
 
-.reader__view {
-  margin: 0 auto;
-  max-width: 48rem;
-  background-color: white;
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
-  padding: 2rem 1rem;
-}
-
-.reader__empty-state {
+.reader__empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 100%;
-  color: #6b7280;
+  min-height: calc(100vh - 64px); /* Subtract header height */
+  color: #666;
+  font-size: 1.1rem;
+}
+
+/* Ensure content container has proper spacing */
+.content {
+  padding: 20px;
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
 }

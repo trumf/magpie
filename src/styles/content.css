@@ -7,13 +7,3 @@
   border-radius: 6px;
   text-align: center;
 }
-
-.markdown {
-  padding: 1rem;
-}
-
-.markdown__empty {
-  text-align: center;
-  color: #6b7280;
-  padding: 2rem;
-}
