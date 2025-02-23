@@ -18,7 +18,18 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
   const [imageSrc, setImageSrc] = useState("");
   const [error, setError] = useState(null);
 
+  const getParentDir = (filePath) => {
+    if (filePath.includes("/")) {
+      // Return everything before the last slash
+      return filePath.substring(0, filePath.lastIndexOf("/"));
+    }
+    // If no slash, assume the file is at the root and the directory has the same name as the file (without .md)
+    return filePath.replace(/\.md$/, "");
+  };
+
   useEffect(() => {
+    let currentBlobUrl = "";
+
     const loadImage = async () => {
       try {
         if (!src) return;
@@ -43,47 +54,30 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
         // Handle local files through directory handle
         if (directoryHandle) {
           try {
-            // Get the directory parts from the markdown file path
-            const markdownPathParts = decodePath(filePath).split("/");
-            const markdownDir = markdownPathParts.slice(0, -1).join("/");
+            // 1. Determine the base directory by removing the .md extension.
+            const baseDir = filePath.replace(/\.md$/, "");
+            console.log("Base directory for images:", baseDir);
 
-            // Get the image path relative to the markdown file
-            const decodedSrc = decodePath(src);
-            const imagePath = decodedSrc.startsWith("/")
-              ? decodedSrc.slice(1)
-              : decodedSrc;
-
-            console.log("Image path details:", {
-              markdownDir,
-              imagePath,
-              decodedSrc,
-            });
-
+            // 2. Navigate from the root directoryHandle using the base directory segments.
             let currentHandle = directoryHandle;
-
-            // First navigate to markdown file's directory if needed
-            if (markdownDir) {
-              for (const part of markdownDir.split("/").filter(Boolean)) {
-                console.log("Navigating to directory:", part);
-                currentHandle = await currentHandle.getDirectoryHandle(part);
-              }
+            const baseSegments = baseDir.split("/");
+            for (const segment of baseSegments) {
+              currentHandle = await currentHandle.getDirectoryHandle(segment);
             }
 
-            // Then navigate to the image
-            const imagePathParts = imagePath.split("/").filter(Boolean);
-            for (let i = 0; i < imagePathParts.length; i++) {
-              const part = imagePathParts[i];
-              if (i === imagePathParts.length - 1) {
-                console.log("Getting file:", part);
-                currentHandle = await currentHandle.getFileHandle(part);
-              } else {
-                console.log("Navigating to subdirectory:", part);
-                currentHandle = await currentHandle.getDirectoryHandle(part);
-              }
+            // 3. Navigate further if the image src specifies subdirectories.
+            const imageSegments = decodePath(src).split("/");
+            // If there are any subdirectories in the src (all segments except the file name):
+            for (let i = 0; i < imageSegments.length - 1; i++) {
+              currentHandle = await currentHandle.getDirectoryHandle(
+                imageSegments[i]
+              );
             }
 
-            // Get the image file and create a blob URL
-            const file = await currentHandle.getFile();
+            // 4. Finally, get the image file.
+            const imageFile = imageSegments[imageSegments.length - 1];
+            const fileHandle = await currentHandle.getFileHandle(imageFile);
+            const file = await fileHandle.getFile();
             const blob = new Blob([await file.arrayBuffer()], {
               type: file.type || "image/png",
             });
@@ -92,12 +86,12 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
             setImageSrc(url);
             setError(null);
           } catch (error) {
-            console.error("Error loading local image:", error);
-            // If local file fails, try using the src directly
+            console.error("Error loading local image:", error, {src, filePath});
+            // Fallback: try using src directly.
             setImageSrc(src);
           }
         } else {
-          // No directory handle, try using src directly
+          // If no directory handle, fall back to using the src directly.
           setImageSrc(src);
         }
       } catch (error) {
@@ -109,9 +103,10 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
 
     loadImage();
 
+    // Cleanup function
     return () => {
-      if (imageSrc && imageSrc.startsWith("blob:")) {
-        URL.revokeObjectURL(imageSrc);
+      if (currentBlobUrl && currentBlobUrl.startsWith("blob:")) {
+        URL.revokeObjectURL(currentBlobUrl);
       }
     };
   }, [src, directoryHandle, filePath]);

@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import {getAnnotationService} from "../services/AnnotationService";
 import OfflineService from "../services/OfflineService";
+import {getFileStorageService} from "../services/FileStorageService";
 
 const AppContext = createContext(null);
 
@@ -17,6 +18,7 @@ export const AppProvider = ({children}) => {
   const [isImporting, setIsImporting] = useState(true);
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [fileStorageService, setFileStorageService] = useState(null);
 
   //offline PWA support
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -50,12 +52,31 @@ export const AppProvider = ({children}) => {
     [annotationService]
   );
 
+  // Combined service initialization
   useEffect(() => {
-    const initService = async () => {
-      const service = await getAnnotationService();
-      setAnnotationService(service);
+    const initServices = async () => {
+      // Initialize both services
+      const [storage, annotation] = await Promise.all([
+        getFileStorageService(),
+        getAnnotationService(),
+      ]);
+
+      setFileStorageService(storage);
+      setAnnotationService(annotation);
+
+      // Load saved files
+      try {
+        const savedFiles = await storage.getFiles();
+        if (savedFiles.length > 0) {
+          setFiles(savedFiles);
+          setIsImporting(false);
+        }
+      } catch (error) {
+        console.error("Error loading saved files:", error);
+      }
     };
-    initService();
+
+    initServices();
   }, []);
 
   useEffect(() => {
@@ -69,6 +90,16 @@ export const AppProvider = ({children}) => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  // Load cached files
+  useEffect(() => {
+    const loadCachedFiles = async () => {
+      const cached = await OfflineService.getCachedFiles();
+      setCachedFiles(cached);
+    };
+
+    loadCachedFiles();
   }, []);
 
   const handleParagraphClick = useCallback(
@@ -131,15 +162,23 @@ export const AppProvider = ({children}) => {
     loadAnnotations,
   ]);
 
-  const handleImport = useCallback(async (importedFiles, dirHandle) => {
-    try {
-      setFiles(importedFiles);
-      setDirectoryHandle(dirHandle);
-      setIsImporting(false);
-    } catch (error) {
-      console.error("Import error:", error);
-    }
-  }, []);
+  const handleImport = useCallback(
+    async (importedFiles, dirHandle) => {
+      try {
+        setFiles(importedFiles);
+        setDirectoryHandle(dirHandle);
+        setIsImporting(false);
+
+        // Save imported files to persistent storage
+        if (fileStorageService) {
+          await fileStorageService.saveFiles(importedFiles);
+        }
+      } catch (error) {
+        console.error("Import error:", error);
+      }
+    },
+    [fileStorageService]
+  );
 
   const handleFileSelect = useCallback(
     async (file) => {
