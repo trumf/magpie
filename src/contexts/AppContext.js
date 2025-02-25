@@ -8,6 +8,9 @@ import React, {
 } from "react";
 import {getAnnotationService} from "../services/AnnotationService";
 import OfflineService from "../services/OfflineService";
+import {getFileStorageService} from "../services/FileStorageService";
+// Import the asset service
+import {getAssetService} from "../services/AssetService";
 
 const AppContext = createContext(null);
 
@@ -17,6 +20,11 @@ export const AppProvider = ({children}) => {
   const [isImporting, setIsImporting] = useState(true);
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+  const [fileStorageService, setFileStorageService] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Add to state declarations
+  const [assetService, setAssetService] = useState(null);
 
   //offline PWA support
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -50,12 +58,47 @@ export const AppProvider = ({children}) => {
     [annotationService]
   );
 
+  // Add to combined service initialization
   useEffect(() => {
-    const initService = async () => {
-      const service = await getAnnotationService();
-      setAnnotationService(service);
+    let mounted = true;
+
+    const initServices = async () => {
+      try {
+        // Initialize services
+        const storage = await getFileStorageService();
+        const annotation = await getAnnotationService();
+        const asset = await getAssetService();
+
+        if (!mounted) return;
+
+        setFileStorageService(storage);
+        setAnnotationService(annotation);
+        setAssetService(asset);
+
+        // Load saved files
+        try {
+          const savedFiles = await storage.getFiles();
+          if (savedFiles.length > 0 && mounted) {
+            setFiles(savedFiles);
+            setIsImporting(false);
+          }
+        } catch (error) {
+          console.error("Error loading saved files:", error);
+        }
+
+        if (mounted) {
+          setIsInitialized(true);
+        }
+      } catch (error) {
+        console.error("Error initializing services:", error);
+      }
     };
-    initService();
+
+    initServices();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -69,6 +112,16 @@ export const AppProvider = ({children}) => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
     };
+  }, []);
+
+  // Load cached files
+  useEffect(() => {
+    const loadCachedFiles = async () => {
+      const cached = await OfflineService.getCachedFiles();
+      setCachedFiles(cached);
+    };
+
+    loadCachedFiles();
   }, []);
 
   const handleParagraphClick = useCallback(
@@ -131,15 +184,23 @@ export const AppProvider = ({children}) => {
     loadAnnotations,
   ]);
 
-  const handleImport = useCallback(async (importedFiles, dirHandle) => {
-    try {
-      setFiles(importedFiles);
-      setDirectoryHandle(dirHandle);
-      setIsImporting(false);
-    } catch (error) {
-      console.error("Import error:", error);
-    }
-  }, []);
+  const handleImport = useCallback(
+    async (importedFiles, dirHandle) => {
+      try {
+        setFiles(importedFiles);
+        setDirectoryHandle(dirHandle);
+        setIsImporting(false);
+
+        // Save imported files to persistent storage
+        if (fileStorageService) {
+          await fileStorageService.saveFiles(importedFiles);
+        }
+      } catch (error) {
+        console.error("Import error:", error);
+      }
+    },
+    [fileStorageService]
+  );
 
   const handleFileSelect = useCallback(
     async (file) => {
@@ -167,6 +228,7 @@ export const AppProvider = ({children}) => {
     setIsAnnotating(false);
   }, []);
 
+  // Add assetService to the context value
   return (
     <AppContext.Provider
       value={{
@@ -188,6 +250,8 @@ export const AppProvider = ({children}) => {
         setIsSidebarVisible,
         isOnline,
         cachedFiles,
+        isInitialized,
+        assetService, // Add this to expose the service
       }}
     >
       {children}
