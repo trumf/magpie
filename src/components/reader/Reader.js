@@ -12,7 +12,7 @@ import ArticleNavigation from "./ArticleNavigation";
 
 const Reader = () => {
   const {isImporting, currentFile, isSidebarVisible} = useApp();
-  const {hasNext, hasPrevious, navigateNext, navigatePrevious} =
+  const {hasNext, hasPrevious, navigateNext, navigatePrevious, contentRef} =
     useFileNavigation();
 
   if (isImporting) {
@@ -27,6 +27,7 @@ const Reader = () => {
         className={`reader__content ${
           isSidebarVisible ? "reader__content--shifted" : ""
         }`}
+        ref={contentRef} // Add the ref here to control scrolling
       >
         {currentFile ? (
           <>

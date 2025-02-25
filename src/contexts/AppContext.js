@@ -202,12 +202,21 @@ export const AppProvider = ({children}) => {
     [fileStorageService]
   );
 
+  // Modified handleFileSelect function for AppContext.js
   const handleFileSelect = useCallback(
     async (file) => {
       setCurrentFile(file);
       if (file) {
         await loadAnnotations(file.path);
         await OfflineService.cacheMarkdownFile(file);
+
+        // Reset scroll position of any scrollable containers
+        // This is a backup method in case the ref approach doesn't work
+        document
+          .querySelectorAll(".reader__content, .content, .markdown")
+          .forEach((el) => {
+            if (el) el.scrollTop = 0;
+          });
       }
     },
     [loadAnnotations]

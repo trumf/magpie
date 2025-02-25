@@ -1,0 +1,21 @@
+/* styles/transitions.css */
+.content {
+  transition: opacity 0.1s ease-in-out, transform 0.1s ease-in-out;
+}
+
+.content--entering {
+  opacity: 0;
+  transform: translateX(20px);
+}
+
+.content--visible {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.content--exiting {
+  opacity: 0;
+  transform: translateX(-20px);
+}
+
+/* Add this to your global.css or create a new file */

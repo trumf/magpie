@@ -102,8 +102,22 @@ const Import = () => {
       <div className="import__container">
         <h1 className="import__title">Import Markdown Files</h1>
 
-        <div className="import__options">
-          <label className="import__option">
+        <div className="import__button-group">
+          <label className="import__button import__button--primary">
+            <input
+              type="file"
+              accept=".zip"
+              onChange={handleZipUpload}
+              className="hidden"
+              disabled={isProcessing}
+            />
+            <div className="import__button">
+              <Upload size={20} />
+              <span>Upload ZIP</span>
+            </div>
+          </label>
+
+          <label className="import__button">
             <input
               type="file"
               accept=".md"
@@ -115,20 +129,6 @@ const Import = () => {
             <div className="import__button">
               <Upload size={20} />
               <span>Select Files</span>
-            </div>
-          </label>
-
-          <label className="import__option">
-            <input
-              type="file"
-              accept=".zip"
-              onChange={handleZipUpload}
-              className="hidden"
-              disabled={isProcessing}
-            />
-            <div className="import__button">
-              <Upload size={20} />
-              <span>Upload ZIP</span>
             </div>
           </label>
 

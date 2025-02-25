@@ -22,6 +22,7 @@ const SwipeableContainer = ({
     setTouchEnd(e.targetTouches[0].clientX);
   };
 
+  // Modified swipe handlers with scroll reset
   const onTouchEnd = () => {
     if (!touchStart || !touchEnd) return;
 
@@ -31,17 +32,44 @@ const SwipeableContainer = ({
 
     if (isLeftSwipe && canSwipeLeft) {
       onSwipeLeft();
+      resetScroll();
     } else if (isRightSwipe && canSwipeRight) {
       onSwipeRight();
+      resetScroll();
     }
+  };
+
+  // Reset scroll function
+  const resetScroll = () => {
+    setTimeout(() => {
+      const scrollableElements = [
+        document.querySelector(".reader__content"),
+        document.querySelector(".content"),
+        document.querySelector(".markdown"),
+      ];
+
+      scrollableElements.forEach((element) => {
+        if (element) {
+          console.log(
+            "Swipe navigation: Resetting scroll for",
+            element.className
+          );
+          element.scrollTop = 0;
+        }
+      });
+
+      window.scrollTo(0, 0);
+    }, 150);
   };
 
   const handleKeyDown = useCallback(
     (e) => {
       if (e.key === "ArrowLeft" && canSwipeRight) {
         onSwipeRight();
+        resetScroll();
       } else if (e.key === "ArrowRight" && canSwipeLeft) {
         onSwipeLeft();
+        resetScroll();
       }
     },
     [onSwipeLeft, onSwipeRight, canSwipeLeft, canSwipeRight]
