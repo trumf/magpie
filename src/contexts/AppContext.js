@@ -9,6 +9,8 @@ import React, {
 import {getAnnotationService} from "../services/AnnotationService";
 import OfflineService from "../services/OfflineService";
 import {getFileStorageService} from "../services/FileStorageService";
+// Import the asset service
+import {getAssetService} from "../services/AssetService";
 
 const AppContext = createContext(null);
 
@@ -19,6 +21,10 @@ export const AppProvider = ({children}) => {
   const [directoryHandle, setDirectoryHandle] = useState(null);
   const [isSidebarVisible, setIsSidebarVisible] = useState(true);
   const [fileStorageService, setFileStorageService] = useState(null);
+  const [isInitialized, setIsInitialized] = useState(false);
+
+  // Add to state declarations
+  const [assetService, setAssetService] = useState(null);
 
   //offline PWA support
   const [isOnline, setIsOnline] = useState(navigator.onLine);
@@ -52,31 +58,47 @@ export const AppProvider = ({children}) => {
     [annotationService]
   );
 
-  // Combined service initialization
+  // Add to combined service initialization
   useEffect(() => {
+    let mounted = true;
+
     const initServices = async () => {
-      // Initialize both services
-      const [storage, annotation] = await Promise.all([
-        getFileStorageService(),
-        getAnnotationService(),
-      ]);
-
-      setFileStorageService(storage);
-      setAnnotationService(annotation);
-
-      // Load saved files
       try {
-        const savedFiles = await storage.getFiles();
-        if (savedFiles.length > 0) {
-          setFiles(savedFiles);
-          setIsImporting(false);
+        // Initialize services
+        const storage = await getFileStorageService();
+        const annotation = await getAnnotationService();
+        const asset = await getAssetService();
+
+        if (!mounted) return;
+
+        setFileStorageService(storage);
+        setAnnotationService(annotation);
+        setAssetService(asset);
+
+        // Load saved files
+        try {
+          const savedFiles = await storage.getFiles();
+          if (savedFiles.length > 0 && mounted) {
+            setFiles(savedFiles);
+            setIsImporting(false);
+          }
+        } catch (error) {
+          console.error("Error loading saved files:", error);
+        }
+
+        if (mounted) {
+          setIsInitialized(true);
         }
       } catch (error) {
-        console.error("Error loading saved files:", error);
+        console.error("Error initializing services:", error);
       }
     };
 
     initServices();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
 
   useEffect(() => {
@@ -206,6 +228,7 @@ export const AppProvider = ({children}) => {
     setIsAnnotating(false);
   }, []);
 
+  // Add assetService to the context value
   return (
     <AppContext.Provider
       value={{
@@ -227,6 +250,8 @@ export const AppProvider = ({children}) => {
         setIsSidebarVisible,
         isOnline,
         cachedFiles,
+        isInitialized,
+        assetService, // Add this to expose the service
       }}
     >
       {children}

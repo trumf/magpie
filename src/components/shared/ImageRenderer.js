@@ -1,115 +1,81 @@
 // components/shared/ImageRenderer.js
 import React, {useState, useEffect} from "react";
+import {getAssetService} from "../../services/AssetService";
 import "../../styles/markdown.css";
-
-const decodePath = (path) => {
-  try {
-    return decodeURIComponent(path);
-  } catch {
-    return path;
-  }
-};
 
 const isExternalUrl = (url) => {
   return url.startsWith("http://") || url.startsWith("https://");
 };
 
-const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
+const ImageRenderer = ({src, alt}) => {
   const [imageSrc, setImageSrc] = useState("");
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  const getParentDir = (filePath) => {
-    if (filePath.includes("/")) {
-      // Return everything before the last slash
-      return filePath.substring(0, filePath.lastIndexOf("/"));
-    }
-    // If no slash, assume the file is at the root and the directory has the same name as the file (without .md)
-    return filePath.replace(/\.md$/, "");
-  };
-
   useEffect(() => {
-    let currentBlobUrl = "";
+    let isMounted = true;
 
     const loadImage = async () => {
-      try {
-        if (!src) return;
-        console.log("Loading image:", {
-          src,
-          filePath,
-          hasDirectoryHandle: !!directoryHandle,
-        });
+      if (!src) {
+        setLoading(false);
+        return;
+      }
 
-        // Handle external URLs
+      try {
+        // Handle external URLs directly
         if (isExternalUrl(src)) {
           setImageSrc(src);
+          setLoading(false);
           return;
         }
 
-        // Handle ZIP file images (blob URLs)
+        // Handle blob URLs
         if (src.startsWith("blob:")) {
           setImageSrc(src);
+          setLoading(false);
           return;
         }
 
-        // Handle local files through directory handle
-        if (directoryHandle) {
-          try {
-            // 1. Determine the base directory by removing the .md extension.
-            const baseDir = filePath.replace(/\.md$/, "");
-            console.log("Base directory for images:", baseDir);
+        // Handle internal asset:// protocol
+        if (src.startsWith("asset://")) {
+          const assetId = src.replace("asset://", "");
+          const assetService = await getAssetService();
+          const assetUrl = await assetService.getAsset(assetId);
 
-            // 2. Navigate from the root directoryHandle using the base directory segments.
-            let currentHandle = directoryHandle;
-            const baseSegments = baseDir.split("/");
-            for (const segment of baseSegments) {
-              currentHandle = await currentHandle.getDirectoryHandle(segment);
-            }
-
-            // 3. Navigate further if the image src specifies subdirectories.
-            const imageSegments = decodePath(src).split("/");
-            // If there are any subdirectories in the src (all segments except the file name):
-            for (let i = 0; i < imageSegments.length - 1; i++) {
-              currentHandle = await currentHandle.getDirectoryHandle(
-                imageSegments[i]
-              );
-            }
-
-            // 4. Finally, get the image file.
-            const imageFile = imageSegments[imageSegments.length - 1];
-            const fileHandle = await currentHandle.getFileHandle(imageFile);
-            const file = await fileHandle.getFile();
-            const blob = new Blob([await file.arrayBuffer()], {
-              type: file.type || "image/png",
-            });
-            const url = URL.createObjectURL(blob);
-            console.log("Created blob URL:", url);
-            setImageSrc(url);
-            setError(null);
-          } catch (error) {
-            console.error("Error loading local image:", error, {src, filePath});
-            // Fallback: try using src directly.
-            setImageSrc(src);
+          if (assetUrl && isMounted) {
+            setImageSrc(assetUrl);
+          } else if (isMounted) {
+            setError(`Asset not found: ${assetId}`);
           }
-        } else {
-          // If no directory handle, fall back to using the src directly.
-          setImageSrc(src);
+
+          setLoading(false);
+          return;
         }
-      } catch (error) {
-        console.error("Error loading image:", error);
-        setError(`Failed to load image: ${src}`);
-        setImageSrc("");
+
+        // Default: try to use the src as provided
+        setImageSrc(src);
+        setLoading(false);
+      } catch (err) {
+        console.error("Error loading image:", err);
+        if (isMounted) {
+          setError(`Failed to load image: ${err.message}`);
+          setLoading(false);
+        }
       }
     };
 
+    setLoading(true);
+    setError(null);
     loadImage();
 
-    // Cleanup function
     return () => {
-      if (currentBlobUrl && currentBlobUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(currentBlobUrl);
-      }
+      isMounted = false;
     };
-  }, [src, directoryHandle, filePath]);
+  }, [src]);
+
+  if (loading) {
+    return <div className="markdown__image-loading">Loading image...</div>;
+  }
 
   if (error) {
     return <div className="markdown__image-error">{error}</div>;
@@ -117,18 +83,15 @@ const ImageRenderer = ({src, alt, directoryHandle, filePath}) => {
 
   return (
     <div className="markdown__image-container">
-      {imageSrc ? (
-        <img
-          src={imageSrc}
-          alt={alt}
-          className="markdown__image"
-          loading="lazy"
-        />
-      ) : (
-        <div className="markdown__image-loading">Loading image...</div>
-      )}
+      <img
+        src={imageSrc}
+        alt={alt || ""}
+        className="markdown__image"
+        loading="lazy"
+        onError={() => setError(`Failed to load image: ${src}`)}
+      />
     </div>
   );
 };
 
-export default ImageRenderer;
+export default React.memo(ImageRenderer);
