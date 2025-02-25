@@ -6,46 +6,77 @@ class AssetService {
     this.version = 3; // Increased version for new assets store
     this.db = null;
     this.assets = new Map(); // In-memory cache for current session
+    this.initPromise = null; // Add a promise to track initialization
   }
 
   async initialize() {
-    if (this.db) return;
+    // If already initialized or initializing, return the existing promise
+    if (this.initPromise) return this.initPromise;
 
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
+    // Create a new initialization promise
+    this.initPromise = new Promise((resolve, reject) => {
+      try {
+        console.log("AssetService: Starting database initialization");
+        const request = indexedDB.open(this.dbName, this.version);
 
-      request.onerror = () => reject(new Error("Failed to open database"));
+        request.onerror = (event) => {
+          console.error("AssetService: Database error:", event.target.error);
+          reject(
+            new Error(`Failed to open database: ${event.target.error.message}`)
+          );
+        };
 
-      request.onsuccess = (event) => {
-        this.db = event.target.result;
-        resolve();
-      };
+        request.onsuccess = (event) => {
+          console.log("AssetService: Database initialization successful");
+          this.db = event.target.result;
+          resolve(this);
+        };
 
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
+        request.onupgradeneeded = (event) => {
+          console.log("AssetService: Database upgrade needed");
+          const db = event.target.result;
 
-        // Create assets store if it doesn't exist
-        if (!db.objectStoreNames.contains("assets")) {
-          const assetsStore = db.createObjectStore("assets", {
-            keyPath: "id",
-          });
+          // Create assets store if it doesn't exist
+          if (!db.objectStoreNames.contains("assets")) {
+            const assetsStore = db.createObjectStore("assets", {
+              keyPath: "id",
+            });
 
-          // Create indexes for querying
-          assetsStore.createIndex("originalPath", "originalPath", {
-            unique: false,
-          });
-          assetsStore.createIndex("name", "name", {
-            unique: false,
-          });
-        }
-      };
+            // Create indexes for querying
+            assetsStore.createIndex("originalPath", "originalPath", {
+              unique: false,
+            });
+            assetsStore.createIndex("name", "name", {
+              unique: false,
+            });
+          }
+        };
+      } catch (error) {
+        console.error("AssetService: Initialization error:", error);
+        reject(error);
+      }
     });
+
+    return this.initPromise;
   }
 
   /**
    * Stores an asset (image, etc.) in the database and returns its unique ID
    */
   async storeAsset(asset) {
+    // Ensure database is initialized
+    if (!this.db) {
+      console.log(
+        "AssetService: Database not initialized in storeAsset, initializing now"
+      );
+      await this.initialize();
+
+      // Double-check that initialization succeeded
+      if (!this.db) {
+        throw new Error("Failed to initialize database");
+      }
+    }
+
     const {blob, name, originalPath} = asset;
 
     // Create a unique ID for the asset
@@ -61,59 +92,77 @@ class AssetService {
       mimeType: blob.type || this.getMimeTypeFromFilename(name),
     });
 
-    // Store in IndexedDB for persistence
-    const transaction = this.db.transaction(["assets"], "readwrite");
-    const store = transaction.objectStore("assets");
+    try {
+      // Store in IndexedDB for persistence
+      const transaction = this.db.transaction(["assets"], "readwrite");
+      const store = transaction.objectStore("assets");
 
-    // Convert blob to ArrayBuffer for storage
-    const arrayBuffer = await blob.arrayBuffer();
+      // Convert blob to ArrayBuffer for storage
+      const arrayBuffer = await blob.arrayBuffer();
 
-    await store.put({
-      id,
-      name,
-      originalPath,
-      arrayBuffer,
-      mimeType: blob.type || this.getMimeTypeFromFilename(name),
-      timestamp: new Date().toISOString(),
-    });
+      await store.put({
+        id,
+        name,
+        originalPath,
+        arrayBuffer,
+        mimeType: blob.type || this.getMimeTypeFromFilename(name),
+        timestamp: new Date().toISOString(),
+      });
 
-    return id;
+      return id;
+    } catch (error) {
+      console.error("AssetService: Error storing asset:", error);
+
+      // Return the ID anyway since we have it in memory cache
+      console.log("AssetService: Returning asset ID from memory cache:", id);
+      return id;
+    }
   }
 
   /**
    * Retrieves an asset by its ID, either from memory or database
    */
   async getAsset(id) {
+    // Ensure database is initialized
+    if (!this.db) {
+      await this.initialize();
+    }
+
     // Check memory cache first
     if (this.assets.has(id)) {
       return this.assets.get(id).url;
     }
 
     // Otherwise load from database
-    const transaction = this.db.transaction(["assets"], "readonly");
-    const store = transaction.objectStore("assets");
+    try {
+      const transaction = this.db.transaction(["assets"], "readonly");
+      const store = transaction.objectStore("assets");
 
-    return new Promise((resolve, reject) => {
-      const request = store.get(id);
+      return new Promise((resolve, reject) => {
+        const request = store.get(id);
 
-      request.onsuccess = () => {
-        const asset = request.result;
-        if (!asset) {
-          return resolve(null);
-        }
+        request.onsuccess = () => {
+          const asset = request.result;
+          if (!asset) {
+            return resolve(null);
+          }
 
-        // Convert ArrayBuffer back to Blob
-        const blob = new Blob([asset.arrayBuffer], {type: asset.mimeType});
-        const url = URL.createObjectURL(blob);
+          // Convert ArrayBuffer back to Blob
+          const blob = new Blob([asset.arrayBuffer], {type: asset.mimeType});
+          const url = URL.createObjectURL(blob);
 
-        // Store in memory cache
-        this.assets.set(id, {url, blob, mimeType: asset.mimeType});
+          // Store in memory cache
+          this.assets.set(id, {url, blob, mimeType: asset.mimeType});
 
-        resolve(url);
-      };
+          resolve(url);
+        };
 
-      request.onerror = () => reject(new Error("Failed to get asset"));
-    });
+        request.onerror = () => reject(new Error("Failed to get asset"));
+      });
+    } catch (error) {
+      console.error("AssetService: Error getting asset:", error);
+      return null;
+    }
   }
 
   /**
@@ -219,12 +268,21 @@ class AssetService {
 }
 
 let instance = null;
+let initializationPromise = null;
 
 export const getAssetService = async () => {
   if (!instance) {
+    // Create the instance if it doesn't exist
     instance = new AssetService();
-    await instance.initialize();
+    // Start initialization immediately
+    initializationPromise = instance.initialize();
   }
+
+  // Wait for initialization to complete before returning
+  if (initializationPromise) {
+    await initializationPromise;
+  }
+
   return instance;
 };
 
