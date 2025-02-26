@@ -48,15 +48,13 @@ class AssetService {
         request.onupgradeneeded = (event) => {
           console.log("AssetService: Database upgrade needed");
           const db = event.target.result;
-        request.onupgradeneeded = (event) => {
-          console.log("AssetService: Database upgrade needed");
-          const db = event.target.result;
+        };
 
-          // Create assets store if it doesn't exist
-          if (!db.objectStoreNames.contains("assets")) {
-            const assetsStore = db.createObjectStore("assets", {
-              keyPath: "id",
-            });
+        // Create assets store if it doesn't exist
+        if (!db.objectStoreNames.contains("assets")) {
+          const assetsStore = db.createObjectStore("assets", {
+            keyPath: "id",
+          });
           // Create assets store if it doesn't exist
           if (!db.objectStoreNames.contains("assets")) {
             const assetsStore = db.createObjectStore("assets", {
@@ -71,7 +69,7 @@ class AssetService {
               unique: false,
             });
           }
-        };
+        }
       } catch (error) {
         console.error("AssetService: Error during initialization:", error);
         this.initPromise = null;
@@ -196,9 +194,6 @@ class AssetService {
             return null;
           }
 
-          // Convert ArrayBuffer back to Blob
-          const blob = new Blob([asset.arrayBuffer], {type: asset.mimeType});
-          const url = URL.createObjectURL(blob);
           // Convert ArrayBuffer back to Blob
           const blob = new Blob([asset.arrayBuffer], {type: asset.mimeType});
           const url = URL.createObjectURL(blob);

@@ -6,7 +6,6 @@ class ImportService {
   constructor() {
     this.assetService = null;
     this.initPromise = null;
-    this.initPromise = null;
   }
 
   async initialize() {
@@ -97,9 +96,6 @@ class ImportService {
                 assetMap
               );
 
-              // Determine parent directory for organization
-              const parts = path.split("/");
-              let parentDir = parts.length > 1 ? parts[parts.length - 2] : null;
               // Determine parent directory for organization
               const parts = path.split("/");
               let parentDir = parts.length > 1 ? parts[parts.length - 2] : null;
@@ -202,18 +198,7 @@ class ImportService {
             const blob = await file
               .arrayBuffer()
               .then((buffer) => new Blob([buffer], {type: file.type}));
-          try {
-            // Process as asset
-            const file = await entry.getFile();
-            const blob = await file
-              .arrayBuffer()
-              .then((buffer) => new Blob([buffer], {type: file.type}));
 
-            const assetId = await this.assetService.storeAsset({
-              blob: new Blob([blob]),
-              name: entry.name,
-              originalPath: entryPath,
-            });
             const assetId = await this.assetService.storeAsset({
               blob: new Blob([blob]),
               name: entry.name,
