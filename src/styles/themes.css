@@ -106,14 +106,14 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Dark mode colors */
-    --color-background: #111827;
+    --color-background: #131721;
     --color-surface: #1f2937;
     --color-border: #374151;
     --color-divider: #1f2937;
 
     /* Text colors in dark mode */
-    --color-text-primary: #f9fafb;
-    --color-text-secondary: #d1d5db;
+    --color-text-primary: #f9fafbec;
+    --color-text-secondary: #d1d5dbea;
     --color-text-tertiary: #9ca3af;
     --color-text-disabled: #6b7280;
 

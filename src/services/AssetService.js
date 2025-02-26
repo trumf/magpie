@@ -12,10 +12,14 @@ class AssetService {
 
   async initialize() {
     // If already initialized, return immediately
-    if (this.initialized) return Promise.resolve();
+    if (this.initialized) {
+      return Promise.resolve();
+    }
 
     // If initialization is in progress, wait for it
-    if (this.initPromise) return this.initPromise;
+    if (this.initPromise) {
+      return this.initPromise;
+    }
 
     console.log("AssetService: Starting database initialization");
 
@@ -48,13 +52,7 @@ class AssetService {
         request.onupgradeneeded = (event) => {
           console.log("AssetService: Database upgrade needed");
           const db = event.target.result;
-        };
 
-        // Create assets store if it doesn't exist
-        if (!db.objectStoreNames.contains("assets")) {
-          const assetsStore = db.createObjectStore("assets", {
-            keyPath: "id",
-          });
           // Create assets store if it doesn't exist
           if (!db.objectStoreNames.contains("assets")) {
             const assetsStore = db.createObjectStore("assets", {
@@ -69,7 +67,7 @@ class AssetService {
               unique: false,
             });
           }
-        }
+        };
       } catch (error) {
         console.error("AssetService: Error during initialization:", error);
         this.initPromise = null;
@@ -95,8 +93,6 @@ class AssetService {
       this.initialized = true; // Force initialized state even on error
       return Promise.resolve(); // Continue anyway
     });
-
-    return this.initPromise;
   }
 
   /**
@@ -198,8 +194,6 @@ class AssetService {
           const blob = new Blob([asset.arrayBuffer], {type: asset.mimeType});
           const url = URL.createObjectURL(blob);
 
-          // Store in memory cache
-          this.assets.set(id, {url, blob, mimeType: asset.mimeType});
           // Store in memory cache
           this.assets.set(id, {url, blob, mimeType: asset.mimeType});
 
@@ -333,7 +327,8 @@ export const getAssetService = async () => {
     // Create the instance if it doesn't exist
     instance = new AssetService();
     try {
-      await instance.initialize();
+      initializationPromise = instance.initialize();
+      await initializationPromise;
       console.log("AssetService initialized successfully");
     } catch (error) {
       console.error("Error initializing AssetService:", error);

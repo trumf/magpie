@@ -1,9 +1,9 @@
-// components/reader/Import.js
+// components/reader/Import.jsx
 import React, {useState, useEffect} from "react";
-import {Upload, Folder} from "lucide-react";
+import {Upload, Folder, FileUp, HardDrive} from "lucide-react";
 import {useApp} from "../../contexts/AppContext";
 import ImportService from "../../services/ImportService";
-import "../../styles/import.css";
+import styles from "./Import.module.css";
 
 const Import = () => {
   const {handleImport} = useApp();
@@ -90,51 +90,53 @@ const Import = () => {
 
   if (!isInitialized) {
     return (
-      <div className="import">
-        <div className="import__loading">Initializing...</div>
-        {error && <div className="import__error">{error}</div>}
+      <div className={styles.container}>
+        <div className={styles.card}>
+          <div className={styles.loading}>Initializing...</div>
+          {error && <div className={styles.error}>{error}</div>}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="import">
-      <div className="import__container">
-        <h1 className="import__title">Import Markdown Files</h1>
+    <div className={styles.container}>
+      <div className={styles.card}>
+        <h1 className={styles.title}>Import Markdown Files</h1>
 
-        <div className="import__options">
-          <label className="import__option">
+        <div className={styles.options}>
+          <label className={styles.option}>
             <input
               type="file"
               accept=".md"
               multiple
               onChange={handleFileUpload}
-              className="hidden"
+              className={styles.hidden}
               disabled={isProcessing}
             />
-            <div className="import__button">
-              <Upload size={20} />
-              <span>Select Files</span>
+            <div className={styles.button}>
+              <FileUp size={20} />
+              <span>Select Markdown Files</span>
             </div>
           </label>
 
-          <label className="import__option">
+          <label className={styles.option}>
             <input
               type="file"
               accept=".zip"
               onChange={handleZipUpload}
-              className="hidden"
+              className={styles.hidden}
               disabled={isProcessing}
             />
-            <div className="import__button">
+            <div className={styles.button}>
               <Upload size={20} />
-              <span>Upload ZIP</span>
+              <span>Upload ZIP Archive</span>
             </div>
           </label>
 
           {ImportService.isDirectoryPickerSupported() && (
             <button
-              className="import__button"
+              className={styles.accentButton}
               onClick={handleDirectorySelect}
               disabled={isProcessing}
             >
@@ -145,12 +147,12 @@ const Import = () => {
         </div>
 
         {isProcessing && (
-          <div className="import__processing">
+          <div className={styles.processing}>
             Processing files... This may take a moment.
           </div>
         )}
 
-        {error && <div className="import__error">{error}</div>}
+        {error && <div className={styles.error}>{error}</div>}
       </div>
     </div>
   );
