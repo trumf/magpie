@@ -6,25 +6,17 @@ class ImportService {
   constructor() {
     this.assetService = null;
     this.initPromise = null;
+    this.initPromise = null;
   }
 
   async initialize() {
+    if (this.assetService) return this.assetService;
+
     if (this.initPromise) return this.initPromise;
 
-    console.log("ImportService: Starting initialization");
-
-    this.initPromise = new Promise(async (resolve, reject) => {
-      try {
-        this.assetService = await getAssetService();
-        console.log("ImportService: AssetService initialized successfully");
-        resolve();
-      } catch (error) {
-        console.error(
-          "ImportService: Failed to initialize AssetService",
-          error
-        );
-        reject(error);
-      }
+    this.initPromise = getAssetService().then((service) => {
+      this.assetService = service;
+      return service;
     });
 
     return this.initPromise;
@@ -35,19 +27,10 @@ class ImportService {
   }
 
   async processZipFile(file) {
-    console.log("ImportService: Processing ZIP file", file.name);
+    // Ensure assetService is initialized before proceeding
+    await this.initialize();
 
-    // Ensure assetService is initialized
-    if (!this.assetService) {
-      console.log(
-        "ImportService: AssetService not initialized, initializing now"
-      );
-      await this.initialize();
-
-      if (!this.assetService) {
-        throw new Error("Failed to initialize AssetService");
-      }
-    }
+    console.log("Processing ZIP file with AssetService:", this.assetService);
 
     const zip = new JSZip();
     const zipContent = await zip.loadAsync(file);
@@ -72,7 +55,6 @@ class ImportService {
         assetPromises.push(
           entry.async("blob").then(async (blob) => {
             try {
-              console.log(`ImportService: Processing asset: ${path}`);
               const assetId = await this.assetService.storeAsset({
                 blob,
                 name: fileName,
@@ -81,15 +63,8 @@ class ImportService {
 
               assetMap[path] = assetId;
               assetMap[fileName] = assetId; // Also map by filename alone
-              console.log(
-                `ImportService: Asset processed successfully: ${path} -> ${assetId}`
-              );
             } catch (error) {
-              console.error(
-                `ImportService: Error processing asset ${path}:`,
-                error
-              );
-              // Continue processing other assets even if one fails
+              console.error(`Error storing asset ${fileName}:`, error);
             }
           })
         );
@@ -116,13 +91,15 @@ class ImportService {
         markdownPromises.push(
           entry.async("string").then(async (content) => {
             try {
-              console.log(`ImportService: Processing markdown: ${path}`);
               // Process content to replace image references
               const processedContent = this.assetService.processMarkdownContent(
                 content,
                 assetMap
               );
 
+              // Determine parent directory for organization
+              const parts = path.split("/");
+              let parentDir = parts.length > 1 ? parts[parts.length - 2] : null;
               // Determine parent directory for organization
               const parts = path.split("/");
               let parentDir = parts.length > 1 ? parts[parts.length - 2] : null;
@@ -134,24 +111,16 @@ class ImportService {
                 content: processedContent,
                 parentDir,
               });
-              console.log(
-                `ImportService: Markdown processed successfully: ${path}`
-              );
             } catch (error) {
-              console.error(
-                `ImportService: Error processing markdown ${path}:`,
-                error
-              );
-              // Add the file anyway without processed content
-              const pathParts = path.split("/");
+              console.error(`Error processing markdown ${fileName}:`, error);
+              // Still add the file, just without processed content
+              const parts = path.split("/");
               files.push({
                 type: "file",
                 name: fileName,
                 path: path,
                 content: content,
-                parentDir:
-                  pathParts.length > 1 ? pathParts[pathParts.length - 2] : null,
-                error: error.message,
+                parentDir: parts.length > 1 ? parts[parts.length - 2] : null,
               });
             }
           })
@@ -173,19 +142,8 @@ class ImportService {
   }
 
   async processDirectory(dirHandle, path = "") {
-    console.log("ImportService: Processing directory", path || "root");
-
-    // Ensure assetService is initialized
-    if (!this.assetService) {
-      console.log(
-        "ImportService: AssetService not initialized, initializing now"
-      );
-      await this.initialize();
-
-      if (!this.assetService) {
-        throw new Error("Failed to initialize AssetService");
-      }
-    }
+    // Ensure assetService is initialized before proceeding
+    await this.initialize();
 
     const files = [];
     const assetMap = {};
@@ -204,11 +162,7 @@ class ImportService {
             assetMap
           );
         } catch (error) {
-          console.error(
-            `ImportService: Error processing markdown ${file.path}:`,
-            error
-          );
-          // Keep original content if processing fails
+          console.error(`Error processing markdown ${file.name}:`, error);
         }
       }
     }
@@ -248,7 +202,18 @@ class ImportService {
             const blob = await file
               .arrayBuffer()
               .then((buffer) => new Blob([buffer], {type: file.type}));
+          try {
+            // Process as asset
+            const file = await entry.getFile();
+            const blob = await file
+              .arrayBuffer()
+              .then((buffer) => new Blob([buffer], {type: file.type}));
 
+            const assetId = await this.assetService.storeAsset({
+              blob: new Blob([blob]),
+              name: entry.name,
+              originalPath: entryPath,
+            });
             const assetId = await this.assetService.storeAsset({
               blob: new Blob([blob]),
               name: entry.name,
@@ -258,11 +223,7 @@ class ImportService {
             assetMap[entryPath] = assetId;
             assetMap[entry.name] = assetId; // Also map by filename alone
           } catch (error) {
-            console.error(
-              `ImportService: Error processing asset ${entryPath}:`,
-              error
-            );
-            // Continue with other files
+            console.error(`Error processing asset ${entry.name}:`, error);
           }
         }
       }
@@ -270,15 +231,7 @@ class ImportService {
   }
 
   async processFiles(fileList) {
-    console.log("ImportService: Processing files");
-
-    // Ensure assetService is initialized
-    if (!this.assetService) {
-      console.log(
-        "ImportService: AssetService not initialized, initializing now"
-      );
-      await this.initialize();
-    }
+    await this.initialize();
 
     const files = [];
 
@@ -377,15 +330,6 @@ class ImportService {
   }
 }
 
-let instance = null;
-
-export const getImportService = async () => {
-  if (!instance) {
-    instance = new ImportService();
-    await instance.initialize();
-  }
-  return instance;
-};
-
-const importServiceInstance = new ImportService();
-export default importServiceInstance;
+// Create an instance and export it
+const importService = new ImportService();
+export default importService;

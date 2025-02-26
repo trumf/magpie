@@ -1,8 +1,10 @@
 // App.js
+import "./styles/reset.css"; // 1. Browser reset styles first
+import "./styles/themes.css"; // 2. Theme variables second
+import "./styles/global.css"; // 3. Global styles that use theme variables
 import React from "react";
 import {AppProvider} from "./contexts/AppContext";
 import Reader from "./components/reader/Reader";
-import "./styles/main.css";
 
 // Service Worker Registration
 const registerServiceWorker = async () => {

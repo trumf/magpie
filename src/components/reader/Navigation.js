@@ -1,5 +1,5 @@
-// components/reader/Navigation.js
-import React from "react";
+// components/reader/Navigation.jsx
+import React, {useState} from "react";
 import {useApp} from "../../contexts/AppContext";
 import {
   X,
@@ -11,10 +11,10 @@ import {
   FileText,
 } from "lucide-react";
 import NavigationService from "../../services/NavigationService";
-import "../../styles/navigation.css";
+import styles from "./Navigation.module.css";
 
 const FileItem = ({item, level = 0, currentFile, handleFileSelect}) => {
-  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const isDirectory = item.type === "directory";
 
   const toggleExpand = (e) => {
@@ -23,22 +23,20 @@ const FileItem = ({item, level = 0, currentFile, handleFileSelect}) => {
   };
 
   const displayTitle = NavigationService.getDisplayTitle(item);
+  const isActive = currentFile?.path === item.path;
 
   return (
     <>
       <div
-        className={`navigation__item ${
-          isDirectory ? "navigation__item--directory" : "navigation__item--file"
-        } ${currentFile?.path === item.path ? "navigation__item--active" : ""}`}
+        className={`${styles.item} ${isDirectory ? styles.directoryItem : ""} ${
+          isActive ? styles.itemActive : ""
+        }`}
         style={{paddingLeft: `${level * 16 + 12}px`}}
         onClick={isDirectory ? toggleExpand : () => handleFileSelect(item)}
       >
-        <div className="navigation__item-content">
+        <div className={styles.itemContent}>
           {isDirectory && (
-            <button
-              className="navigation__expand-button"
-              onClick={toggleExpand}
-            >
+            <button className={styles.expandButton} onClick={toggleExpand}>
               {isExpanded ? (
                 <ChevronDown size={16} />
               ) : (
@@ -47,12 +45,12 @@ const FileItem = ({item, level = 0, currentFile, handleFileSelect}) => {
             </button>
           )}
           {isDirectory ? <Folder size={16} /> : <FileText size={16} />}
-          <span className="navigation__item-name">{displayTitle}</span>
+          <span className={styles.itemName}>{displayTitle}</span>
         </div>
       </div>
 
       {isDirectory && isExpanded && item.children && (
-        <div className="navigation__children">
+        <div className={styles.children}>
           {item.children.map((child) => (
             <FileItem
               key={child.path}
@@ -84,32 +82,32 @@ const Navigation = () => {
   return (
     <>
       {isSidebarVisible && (
-        <div className="navigation__overlay" onClick={handleOverlayClick} />
+        <div className={styles.overlay} onClick={handleOverlayClick} />
       )}
 
       <nav
-        className={`navigation ${
-          isSidebarVisible ? "navigation--visible" : ""
+        className={`${styles.navigation} ${
+          isSidebarVisible ? styles.visible : ""
         }`}
       >
-        <div className="navigation__header">
+        <div className={styles.header}>
           <button
-            className="navigation__close"
+            className={styles.closeButton}
             onClick={() => setIsSidebarVisible(false)}
           >
             <X size={24} />
           </button>
-          <div className="navigation__actions">
-            <button className="navigation__button">
+          <div className={styles.actions}>
+            <button className={styles.actionButton}>
               <Upload size={18} />
             </button>
-            <button className="navigation__button">
+            <button className={styles.actionButton}>
               <Settings size={18} />
             </button>
           </div>
         </div>
 
-        <div className="navigation__files">
+        <div className={styles.fileList}>
           {files.map((item) => (
             <FileItem
               key={item.path}
