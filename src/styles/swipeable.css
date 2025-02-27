@@ -1,7 +1,0 @@
-/* styles/swipeable.css */
-.swipeable {
-  width: 100%;
-
-  touch-action: pan-y pinch-zoom;
-  position: relative;
-}

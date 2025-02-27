@@ -1,7 +1,15 @@
 // components/shared/ImageRenderer.js
+/*
+ImageRenderer - Specialized component for rendering images that:
+
+Handles different image source types (URL, blob, asset protocol)
+Manages loading and error states for images
+Works with the AssetService to retrieve stored images
+*/
+
 import React, {useState, useEffect} from "react";
 import {getAssetService} from "../../services/AssetService";
-import "../../styles/markdown.css";
+import styles from "./ImageRenderer.module.css";
 
 const isExternalUrl = (url) => {
   return url.startsWith("http://") || url.startsWith("https://");
@@ -74,19 +82,19 @@ const ImageRenderer = ({src, alt}) => {
   }, [src]);
 
   if (loading) {
-    return <div className="markdown__image-loading">Loading image...</div>;
+    return <div className={styles.loading}>Loading image...</div>;
   }
 
   if (error) {
-    return <div className="markdown__image-error">{error}</div>;
+    return <div className={styles.error}>{error}</div>;
   }
 
   return (
-    <div className="markdown__image-container">
+    <div className={styles.container}>
       <img
         src={imageSrc}
         alt={alt || ""}
-        className="markdown__image"
+        className={styles.image}
         loading="lazy"
         onError={() => setError(`Failed to load image: ${src}`)}
       />

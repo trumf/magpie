@@ -1,8 +1,17 @@
 // components/shared/MarkdownRenderer.js
+/*
+MarkdownRenderer - The core rendering component that:
+
+Splits markdown content into paragraphs
+Handles paragraph selection for annotations
+Applies styling to paragraphs based on their state (selected, annotated)
+Delegates image rendering to the ImageRenderer
+*/
 import React, {useMemo} from "react";
 import ReactMarkdown from "react-markdown";
 import ImageRenderer from "./ImageRenderer";
 import {useApp} from "../../contexts/AppContext";
+import styles from "./MarkdownRenderer.module.css";
 
 const MarkdownRenderer = ({content, directoryHandle, filePath}) => {
   const {selectedParagraphs, handleParagraphClick, annotations} = useApp();
@@ -35,11 +44,15 @@ const MarkdownRenderer = ({content, directoryHandle, filePath}) => {
 
   // If no content, show a message
   if (!content) {
-    return <div className="markdown">No content available</div>;
+    return (
+      <div className={styles.container}>
+        <div className={styles.empty}>No content available</div>
+      </div>
+    );
   }
 
   return (
-    <div className="markdown">
+    <div className={styles.container}>
       {paragraphs.map((paragraph, index) => {
         const isSelected = selectedParagraphs.has(index);
         const hasAnnotations = annotations[index]?.length > 0;
@@ -48,11 +61,11 @@ const MarkdownRenderer = ({content, directoryHandle, filePath}) => {
           <div
             key={index}
             onClick={() => onParagraphClick(index)}
-            className={`markdown__paragraph markdown__paragraph--interactive ${
-              isSelected ? "markdown__paragraph--selected" : ""
+            className={`${styles.paragraph} ${styles.interactive} ${
+              isSelected ? styles.selected : ""
             }`}
           >
-            {hasAnnotations && <span className="markdown__annotation-marker" />}
+            {hasAnnotations && <span className={styles.annotationMarker} />}
             <ReactMarkdown components={components}>{paragraph}</ReactMarkdown>
           </div>
         );

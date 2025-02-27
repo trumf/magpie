@@ -1,0 +1,53 @@
+/* components/shared/SwipeableContainer.module.css */
+
+.container {
+  width: 100%;
+  touch-action: pan-y pinch-zoom;
+  position: relative;
+}
+
+/* Optional visual indicator for swipe areas */
+.leftIndicator,
+.rightIndicator {
+  position: absolute;
+  top: 50%;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background-color: var(--color-surface);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: translateY(-50%);
+  transition: opacity var(--transition-fast);
+  box-shadow: var(--shadow-md);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.leftIndicator {
+  left: 12px;
+}
+
+.rightIndicator {
+  right: 12px;
+}
+
+.container:active .leftIndicator,
+.container:active .rightIndicator {
+  opacity: 0.8;
+}
+
+/* For desktop hover */
+@media (hover: hover) {
+  .container:hover .leftIndicator,
+  .container:hover .rightIndicator {
+    opacity: 0.3;
+  }
+
+  .container:hover:active .leftIndicator,
+  .container:hover:active .rightIndicator {
+    opacity: 0.8;
+  }
+}

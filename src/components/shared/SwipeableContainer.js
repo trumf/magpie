@@ -1,6 +1,15 @@
 // components/shared/SwipeableContainer.js
+/*
+SwipeableContainer - Touch interaction wrapper that:
+
+Enables swipe gestures for navigating between articles
+Provides keyboard navigation with arrow keys
+Can display optional visual indicators for navigation directions
+*/
+
 import React, {useState, useEffect, useCallback} from "react";
-import "../../styles/swipeable.css";
+import {ChevronLeft, ChevronRight} from "lucide-react";
+import styles from "./SwipeableContainer.module.css";
 
 const SwipeableContainer = ({
   onSwipeLeft,
@@ -8,6 +17,7 @@ const SwipeableContainer = ({
   canSwipeLeft,
   canSwipeRight,
   children,
+  showIndicators = false, // Optional prop to show swipe indicators
 }) => {
   const [touchStart, setTouchStart] = useState(null);
   const [touchEnd, setTouchEnd] = useState(null);
@@ -56,12 +66,24 @@ const SwipeableContainer = ({
 
   return (
     <div
-      className="swipeable"
+      className={styles.container}
       onTouchStart={onTouchStart}
       onTouchMove={onTouchMove}
       onTouchEnd={onTouchEnd}
     >
+      {showIndicators && canSwipeRight && (
+        <div className={styles.leftIndicator}>
+          <ChevronLeft size={24} />
+        </div>
+      )}
+
       {children}
+
+      {showIndicators && canSwipeLeft && (
+        <div className={styles.rightIndicator}>
+          <ChevronRight size={24} />
+        </div>
+      )}
     </div>
   );
 };
