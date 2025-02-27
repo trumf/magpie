@@ -27,15 +27,15 @@
   --color-text-inverse: #ffffff;
 
   /* Typography */
-  --font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, sans-serif;
+  --font-family: "Noto Sans", "Inter", system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-size-xs: 0.75rem; /* 12px */
   --font-size-sm: 0.875rem; /* 14px */
-  --font-size-md: 1rem; /* 16px */
-  --font-size-lg: 1.125rem; /* 18px */
-  --font-size-xl: 1.25rem; /* 20px */
-  --font-size-2xl: 1.5rem; /* 24px */
-  --font-size-3xl: 1.875rem; /* 30px */
+  --font-size-md: 1.125rem; /* 16px */
+  --font-size-lg: 1.25rem; /* 18px */
+  --font-size-xl: 1.5rem; /* 20px */
+  --font-size-2xl: 1.875rem; /* 24px */
+  --font-size-3xl: 2rem; /* 30px */
 
   /* Font weights */
   --font-weight-normal: 400;
@@ -106,14 +106,14 @@
 @media (prefers-color-scheme: dark) {
   :root {
     /* Dark mode colors */
-    --color-background: #131721;
+    --color-background: #111827;
     --color-surface: #1f2937;
     --color-border: #374151;
     --color-divider: #1f2937;
 
     /* Text colors in dark mode */
-    --color-text-primary: #f9fafbec;
-    --color-text-secondary: #d1d5dbea;
+    --color-text-primary: #f9fafbe3;
+    --color-text-secondary: #d1d5dbe6;
     --color-text-tertiary: #9ca3af;
     --color-text-disabled: #6b7280;
 
@@ -134,14 +134,14 @@
 /* Class-based theme toggle (for manual theme switching) */
 .dark-theme {
   /* Dark mode colors */
-  --color-background: #111827;
+  --color-background: #11161f;
   --color-surface: #1f2937;
   --color-border: #374151;
   --color-divider: #1f2937;
 
   /* Text colors in dark mode */
-  --color-text-primary: #f9fafb;
-  --color-text-secondary: #d1d5db;
+  --color-text-primary: #f9fafbe3;
+  --color-text-secondary: #d1d5dbe6;
   --color-text-tertiary: #9ca3af;
   --color-text-disabled: #6b7280;
 

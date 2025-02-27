@@ -1,7 +1,15 @@
 // components/reader/Content.js
+/*
+Content - Manages the article content container that:
+
+Handles scroll position resets when changing articles
+Displays error states when content can't be loaded
+Wraps the MarkdownRenderer with proper padding and spacing
+*/
 import React, {useEffect} from "react";
 import {useApp} from "../../contexts/AppContext";
 import MarkdownRenderer from "../shared/MarkdownRenderer";
+import styles from "./Content.module.css";
 
 const Content = () => {
   const {currentFile, directoryHandle} = useApp();
@@ -13,8 +21,8 @@ const Content = () => {
       setTimeout(() => {
         // Reset scroll on all possible scrollable containers
         const scrollableElements = [
+          document.querySelector(`.${styles.container}`),
           document.querySelector(".reader__content"),
-          document.querySelector(".content"),
           document.querySelector(".markdown"),
         ];
 
@@ -31,11 +39,11 @@ const Content = () => {
   }, [currentFile]); // This will run whenever currentFile changes
 
   if (!currentFile?.content) {
-    return <div className="content__error">Unable to load file content</div>;
+    return <div className={styles.error}>Unable to load file content</div>;
   }
 
   return (
-    <div className="content">
+    <div className={styles.container}>
       <MarkdownRenderer
         content={currentFile.content}
         directoryHandle={directoryHandle}
