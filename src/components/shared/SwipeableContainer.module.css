@@ -3,7 +3,7 @@
 .container {
   position: relative;
   width: 100%;
-  overflow: hidden;
+
   touch-action: pan-y;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
@@ -68,7 +68,7 @@
 @media (pointer: coarse) {
   .container {
     /* Make the component respond better to touch */
-    touch-action: none;
+    /* touch-action: none;*/
   }
 
   /* Make indicators larger on touch devices */
