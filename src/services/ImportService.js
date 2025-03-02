@@ -132,6 +132,36 @@ class ImportService {
       // Continue organizing files even if some markdown fails
     });
 
+    // Create directory entries for all subdirectories in the ZIP
+    const directories = new Set();
+    for (const [path] of Object.entries(zipContent.files)) {
+      if (path.includes("/")) {
+        const parts = path.split("/");
+        // Add each directory level
+        for (let i = 0; i < parts.length - 1; i++) {
+          const dirPath = parts.slice(0, i + 1).join("/");
+          directories.add(dirPath);
+        }
+      }
+    }
+
+    // Add directory entries to files array
+    directories.forEach((dirPath) => {
+      const dirName = dirPath.split("/").pop();
+      const parentDir =
+        dirPath.split("/").length > 1
+          ? dirPath.split("/").slice(0, -1).join("/")
+          : null;
+
+      files.push({
+        type: "directory",
+        name: dirName,
+        path: dirPath,
+        children: [],
+        parentDir,
+      });
+    });
+
     // Organize files into a tree structure
     console.log("ImportService: Organizing files into tree structure");
     return this.organizeFiles(files);

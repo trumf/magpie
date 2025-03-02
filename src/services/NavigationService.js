@@ -4,13 +4,14 @@ class NavigationService {
     const flatten = (items) => {
       return items.reduce((flat, item) => {
         if (item.type === "directory") {
-          return [...flat, ...flatten(item.children)];
+          return [...flat, ...flatten(item.children || [])];
         }
         return [...flat, item];
       }, []);
     };
 
-    return flatten(files);
+    // Only flatten file entries, not directories
+    return flatten(files).filter((item) => item.type === "file");
   }
 
   getNavigationState(files, currentPath) {
