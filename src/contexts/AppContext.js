@@ -19,7 +19,10 @@ export const AppProvider = ({children}) => {
   const [currentFile, setCurrentFile] = useState(null);
   const [isImporting, setIsImporting] = useState(true);
   const [directoryHandle, setDirectoryHandle] = useState(null);
-  const [isSidebarVisible, setIsSidebarVisible] = useState(true);
+
+  // Change the default value to false so the sidebar is initially collapsed
+  const [isSidebarVisible, setIsSidebarVisible] = useState(false);
+
   const [fileStorageService, setFileStorageService] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
 
@@ -191,6 +194,9 @@ export const AppProvider = ({children}) => {
         setDirectoryHandle(dirHandle);
         setIsImporting(false);
 
+        // When files are imported, set the sidebar to visible
+        setIsSidebarVisible(true);
+
         // Save imported files to persistent storage
         if (fileStorageService) {
           await fileStorageService.saveFiles(importedFiles);
@@ -252,6 +258,7 @@ export const AppProvider = ({children}) => {
         cachedFiles,
         isInitialized,
         assetService, // Add this to expose the service
+        setIsImporting, // This will be helpful for navigation
       }}
     >
       {children}

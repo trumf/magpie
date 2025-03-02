@@ -5,10 +5,12 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: calc(100vh - var(--header-height)); /* Adjust for header height */
   padding: var(--space-5);
   background-color: var(--color-background);
   color: var(--color-text-primary);
+  /* This ensures it starts below the header */
+  margin-top: var(--header-height);
 }
 
 .card {

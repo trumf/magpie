@@ -1,53 +1,52 @@
 /* components/shared/SwipeableContainer.module.css */
 
 .container {
-  width: 100%;
-  touch-action: pan-y pinch-zoom;
   position: relative;
+  width: 100%;
+  overflow: hidden;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 1;
 }
 
-/* Optional visual indicator for swipe areas */
+.content {
+  position: relative;
+  width: 100%;
+  min-height: 10px;
+  will-change: transform;
+  transition: transform 0.3s ease-out;
+  z-index: 1;
+}
+
 .leftIndicator,
 .rightIndicator {
   position: absolute;
   top: 50%;
+  transform: translateY(-50%);
   width: 40px;
   height: 40px;
+  background-color: #ffffff;
   border-radius: 50%;
-  background-color: var(--color-surface);
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: 0;
-  transform: translateY(-50%);
-  transition: opacity var(--transition-fast);
-  box-shadow: var(--shadow-md);
-  z-index: 10;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 2;
   pointer-events: none;
 }
 
 .leftIndicator {
-  left: 12px;
+  left: 16px;
 }
 
 .rightIndicator {
-  right: 12px;
+  right: 16px;
 }
 
-.container:active .leftIndicator,
-.container:active .rightIndicator {
-  opacity: 0.8;
-}
-
-/* For desktop hover */
-@media (hover: hover) {
-  .container:hover .leftIndicator,
-  .container:hover .rightIndicator {
-    opacity: 0.3;
-  }
-
-  .container:hover:active .leftIndicator,
-  .container:hover:active .rightIndicator {
-    opacity: 0.8;
-  }
+/* Adding more explicit styles for dark mode */
+:global(.dark-theme) .leftIndicator,
+:global(.dark-theme) .rightIndicator {
+  background-color: #1f2937;
+  color: #f9fafb;
 }

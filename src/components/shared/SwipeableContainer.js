@@ -1,13 +1,5 @@
 // components/shared/SwipeableContainer.js
-/*
-SwipeableContainer - Touch interaction wrapper that:
-
-Enables swipe gestures for navigating between articles
-Provides keyboard navigation with arrow keys
-Can display optional visual indicators for navigation directions
-*/
-
-import React, {useState, useEffect, useCallback} from "react";
+import React, {useState, useRef} from "react";
 import {ChevronLeft, ChevronRight} from "lucide-react";
 import styles from "./SwipeableContainer.module.css";
 
@@ -17,70 +9,147 @@ const SwipeableContainer = ({
   canSwipeLeft,
   canSwipeRight,
   children,
-  showIndicators = false, // Optional prop to show swipe indicators
 }) => {
-  const [touchStart, setTouchStart] = useState(null);
-  const [touchEnd, setTouchEnd] = useState(null);
-  const minSwipeDistance = 50;
+  // Refs
+  const startXRef = useRef(null);
+  const containerRef = useRef(null);
 
-  const onTouchStart = (e) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
+  // Visual feedback state
+  const [dragOffset, setDragOffset] = useState(0);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // Touch handlers
+  const handleTouchStart = (e) => {
+    startXRef.current = e.touches[0].clientX;
+    setIsDragging(true);
   };
 
-  const onTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
+  const handleTouchMove = (e) => {
+    if (!startXRef.current) return;
 
-  const onTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
+    const currentX = e.touches[0].clientX;
+    const delta = currentX - startXRef.current;
 
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe && canSwipeLeft) {
-      onSwipeLeft();
-    } else if (isRightSwipe && canSwipeRight) {
-      onSwipeRight();
+    // Limit drag direction based on availability
+    if ((delta < 0 && canSwipeLeft) || (delta > 0 && canSwipeRight)) {
+      // Apply some resistance
+      setDragOffset(delta * 0.5);
     }
   };
 
-  const handleKeyDown = useCallback(
-    (e) => {
-      if (e.key === "ArrowLeft" && canSwipeRight) {
-        onSwipeRight();
-      } else if (e.key === "ArrowRight" && canSwipeLeft) {
-        onSwipeLeft();
-      }
-    },
-    [onSwipeLeft, onSwipeRight, canSwipeLeft, canSwipeRight]
-  );
+  const handleTouchEnd = () => {
+    if (!startXRef.current || !containerRef.current) {
+      resetDrag();
+      return;
+    }
 
-  useEffect(() => {
-    window.addEventListener("keydown", handleKeyDown);
-    return () => {
-      window.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [handleKeyDown]);
+    const containerWidth = containerRef.current.offsetWidth;
+    const threshold = containerWidth * 0.3; // 30% threshold
+
+    if (Math.abs(dragOffset) > threshold) {
+      if (dragOffset < 0 && canSwipeLeft) {
+        console.log("EXECUTING LEFT SWIPE");
+        onSwipeLeft && onSwipeLeft();
+      } else if (dragOffset > 0 && canSwipeRight) {
+        console.log("EXECUTING RIGHT SWIPE");
+        onSwipeRight && onSwipeRight();
+      }
+    }
+
+    resetDrag();
+  };
+
+  // Mouse handlers
+  const handleMouseDown = (e) => {
+    startXRef.current = e.clientX;
+    setIsDragging(true);
+    e.preventDefault(); // Prevent text selection
+  };
+
+  const handleMouseMove = (e) => {
+    if (!startXRef.current || !isDragging) return;
+
+    const delta = e.clientX - startXRef.current;
+
+    // Limit drag direction based on availability
+    if ((delta < 0 && canSwipeLeft) || (delta > 0 && canSwipeRight)) {
+      // Apply some resistance
+      setDragOffset(delta * 0.5);
+    }
+  };
+
+  const handleMouseUp = () => {
+    if (!startXRef.current || !containerRef.current) {
+      resetDrag();
+      return;
+    }
+
+    const containerWidth = containerRef.current.offsetWidth;
+    const threshold = containerWidth * 0.3; // 30% threshold
+
+    if (Math.abs(dragOffset) > threshold) {
+      if (dragOffset < 0 && canSwipeLeft) {
+        console.log("EXECUTING LEFT SWIPE");
+        onSwipeLeft && onSwipeLeft();
+      } else if (dragOffset > 0 && canSwipeRight) {
+        console.log("EXECUTING RIGHT SWIPE");
+        onSwipeRight && onSwipeRight();
+      }
+    }
+
+    resetDrag();
+  };
+
+  const handleMouseLeave = () => {
+    if (isDragging) {
+      resetDrag();
+    }
+  };
+
+  const resetDrag = () => {
+    startXRef.current = null;
+    setDragOffset(0);
+    setIsDragging(false);
+  };
+
+  // Calculate indicator opacity based on drag progress
+  const progress = Math.min(
+    1,
+    Math.abs(dragOffset) / (containerRef.current?.offsetWidth * 0.3 || 1)
+  );
+  const leftOpacity = dragOffset > 0 ? progress * 0.8 : 0;
+  const rightOpacity = dragOffset < 0 ? progress * 0.8 : 0;
 
   return (
     <div
+      ref={containerRef}
       className={styles.container}
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseLeave}
     >
-      {showIndicators && canSwipeRight && (
-        <div className={styles.leftIndicator}>
+      {canSwipeRight && (
+        <div className={styles.leftIndicator} style={{opacity: leftOpacity}}>
           <ChevronLeft size={24} />
         </div>
       )}
 
-      {children}
+      <div
+        className={styles.content}
+        style={{
+          transform: `translateX(${dragOffset}px)`,
+          transition: isDragging ? "none" : "transform 0.3s ease-out",
+        }}
+      >
+        {children}
+      </div>
 
-      {showIndicators && canSwipeLeft && (
-        <div className={styles.rightIndicator}>
+      {canSwipeLeft && (
+        <div className={styles.rightIndicator} style={{opacity: rightOpacity}}>
           <ChevronRight size={24} />
         </div>
       )}

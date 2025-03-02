@@ -14,7 +14,7 @@
 
   /* Neutral colors */
   --color-white: #ffffff;
-  --color-background: #ffffff;
+  --color-background: #fafafa;
   --color-surface: #f9fafb;
   --color-border: #e5e7eb;
   --color-divider: #f3f4f6;
@@ -31,11 +31,11 @@
     BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-size-xs: 0.75rem; /* 12px */
   --font-size-sm: 0.875rem; /* 14px */
-  --font-size-md: 1.125rem; /* 16px */
-  --font-size-lg: 1.25rem; /* 18px */
-  --font-size-xl: 1.5rem; /* 20px */
-  --font-size-2xl: 1.875rem; /* 24px */
-  --font-size-3xl: 2rem; /* 30px */
+  --font-size-md: 1; /* 16px */
+  --font-size-lg: 1.125rem; /* 18px */
+  --font-size-xl: 1.25rem; /* 20px */
+  --font-size-2xl: 1.5rem; /* 24px */
+  --font-size-3xl: 1.875rem; /* 30px */
 
   /* Font weights */
   --font-weight-normal: 400;
@@ -45,8 +45,8 @@
 
   /* Line heights */
   --line-height-tight: 1.25;
-  --line-height-normal: 1.5;
-  --line-height-relaxed: 1.75;
+  --line-height-normal: 1.6;
+  --line-height-relaxed: 1.9;
 
   /* Spacing system */
   --space-0: 0;
