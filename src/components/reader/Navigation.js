@@ -106,10 +106,37 @@ const Navigation = () => {
     handleFileSelect,
     isSidebarVisible,
     setIsSidebarVisible,
+    setIsImporting,
   } = useApp();
+
+  // State to track confirmation dialog
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
 
   const handleOverlayClick = () => {
     setIsSidebarVisible(false);
+    // Also hide the confirmation dialog if it's open
+    setShowConfirmDialog(false);
+  };
+
+  const handleImportClick = () => {
+    // If there are already files loaded, show confirmation dialog
+    if (files && files.length > 0) {
+      setShowConfirmDialog(true);
+    } else {
+      // If no files, we can go directly to import mode
+      navigateToImport();
+    }
+  };
+
+  const navigateToImport = () => {
+    // Close the sidebar
+    setIsSidebarVisible(false);
+    // Switch to import mode
+    setIsImporting(true);
+  };
+
+  const cancelImport = () => {
+    setShowConfirmDialog(false);
   };
 
   return (
@@ -131,7 +158,11 @@ const Navigation = () => {
             <X size={24} />
           </button>
           <div className={styles.actions}>
-            <button className={styles.actionButton}>
+            <button
+              className={styles.actionButton}
+              onClick={handleImportClick}
+              title="Import more articles"
+            >
               <Upload size={18} />
             </button>
             <button className={styles.actionButton}>
@@ -150,6 +181,28 @@ const Navigation = () => {
             />
           ))}
         </div>
+
+        {/* Confirmation Dialog */}
+        {showConfirmDialog && (
+          <div className={styles.confirmationDialog}>
+            <h3>Import More Articles?</h3>
+            <p>You already have articles loaded. What would you like to do?</p>
+            <div className={styles.dialogButtons}>
+              <button
+                className={styles.dialogButton}
+                onClick={navigateToImport}
+              >
+                Import & Add
+              </button>
+              <button
+                className={`${styles.dialogButton} ${styles.cancelButton}`}
+                onClick={cancelImport}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
       </nav>
     </>
   );
