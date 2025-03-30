@@ -11,60 +11,49 @@ class FileStorageService {
     if (this.db) return;
 
     return new Promise((resolve, reject) => {
-      // Delete the existing database if there are issues
-      const deleteRequest = indexedDB.deleteDatabase(this.dbName);
+      const request = indexedDB.open(this.dbName, this.version);
 
-      deleteRequest.onsuccess = () => {
-        // Now create a new database
-        const request = indexedDB.open(this.dbName, this.version);
-
-        request.onerror = (event) => {
-          console.error("Database error:", event.target.error);
-          reject(new Error("Failed to open database"));
-        };
-
-        request.onblocked = (event) => {
-          console.warn("Database blocked:", event);
-          // Close all other tabs/connections to the database
-          if (this.db) {
-            this.db.close();
-          }
-        };
-
-        request.onsuccess = (event) => {
-          this.db = event.target.result;
-
-          // Handle database connection errors
-          this.db.onerror = (event) => {
-            console.error("Database error:", event.target.error);
-          };
-
-          resolve();
-        };
-
-        request.onupgradeneeded = (event) => {
-          console.log("Upgrading database...");
-          const db = event.target.result;
-
-          // Create files store if it doesn't exist
-          if (!db.objectStoreNames.contains("files")) {
-            const filesStore = db.createObjectStore("files", {
-              keyPath: "path",
-            });
-
-            // Create indexes
-            filesStore.createIndex("type", "type", {unique: false});
-            filesStore.createIndex("name", "name", {unique: false});
-            filesStore.createIndex("lastAccessed", "lastAccessed", {
-              unique: false,
-            });
-          }
-        };
+      request.onerror = (event) => {
+        console.error("Database error:", event.target.error);
+        reject(new Error("Failed to open database"));
       };
 
-      deleteRequest.onerror = () => {
-        console.error("Error deleting database");
-        reject(new Error("Failed to delete existing database"));
+      request.onblocked = (event) => {
+        console.warn("Database blocked:", event);
+        // Close all other tabs/connections to the database
+        if (this.db) {
+          this.db.close();
+        }
+      };
+
+      request.onsuccess = (event) => {
+        this.db = event.target.result;
+
+        // Handle database connection errors
+        this.db.onerror = (event) => {
+          console.error("Database error:", event.target.error);
+        };
+
+        resolve();
+      };
+
+      request.onupgradeneeded = (event) => {
+        console.log("Upgrading database...");
+        const db = event.target.result;
+
+        // Create files store if it doesn't exist
+        if (!db.objectStoreNames.contains("files")) {
+          const filesStore = db.createObjectStore("files", {
+            keyPath: "path",
+          });
+
+          // Create indexes
+          filesStore.createIndex("type", "type", {unique: false});
+          filesStore.createIndex("name", "name", {unique: false});
+          filesStore.createIndex("lastAccessed", "lastAccessed", {
+            unique: false,
+          });
+        }
       };
     });
   }
