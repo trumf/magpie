@@ -17,6 +17,7 @@ module.exports = {
   transform: {
     "^.+\\.(js|jsx)$": "babel-jest",
   },
+  transformIgnorePatterns: ["/node_modules/(?!lucide-react).+\\.js$"],
   testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/cypress/"],
   collectCoverageFrom: [
     "src/**/*.{js,jsx}",
