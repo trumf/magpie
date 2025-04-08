@@ -1,6 +1,6 @@
 // contexts/AppContext.test.js
 import React from "react";
-import {render, act, waitFor} from "@testing-library/react";
+import {render, act, waitFor, screen} from "@testing-library/react";
 import {AppProvider, useApp} from "./AppContext";
 import {getAnnotationService} from "../services/AnnotationService";
 import {getFileStorageService} from "../services/FileStorageService";
@@ -71,7 +71,7 @@ describe("AppContext Provider", () => {
   });
 
   test("initializes with default values", async () => {
-    const {getByTestId} = render(
+    render(
       <AppProvider>
         <TestComponent />
       </AppProvider>
@@ -79,8 +79,11 @@ describe("AppContext Provider", () => {
 
     // Check initial state values
     await waitFor(() => {
-      expect(getByTestId("isImporting").textContent).toBe("true");
-      expect(getByTestId("isSidebarVisible").textContent).toBe("false");
+      expect(screen.getByTestId("isImporting").textContent).toBe("true");
+    });
+
+    await waitFor(() => {
+      expect(screen.getByTestId("isSidebarVisible").textContent).toBe("false");
     });
 
     // Verify service initialization was called
@@ -90,7 +93,7 @@ describe("AppContext Provider", () => {
   });
 
   test("toggles sidebar visibility", async () => {
-    const {getByTestId} = render(
+    render(
       <AppProvider>
         <TestComponent />
       </AppProvider>
@@ -98,31 +101,35 @@ describe("AppContext Provider", () => {
 
     // Initially sidebar should be hidden
     await waitFor(() => {
-      expect(getByTestId("isSidebarVisible").textContent).toBe("false");
+      expect(screen.getByTestId("isSidebarVisible").textContent).toBe("false");
     });
 
     // Toggle sidebar
     act(() => {
-      getByTestId("toggleSidebar").click();
+      screen.getByTestId("toggleSidebar").click();
     });
 
     // Sidebar should now be visible
     await waitFor(() => {
-      expect(getByTestId("isSidebarVisible").textContent).toBe("true");
+      expect(screen.getByTestId("isSidebarVisible").textContent).toBe("true");
     });
   });
 
   test("handleFileSelect updates currentFile and loads annotations", async () => {
-    // Mock the loadAnnotations function
+    // Mock the annotations data
     const mockAnnotations = [
       {id: 1, paragraphIndex: 0, text: "Test annotation"},
     ];
 
-    getAnnotationService.mockResolvedValue({
+    // Create a mock annotation service
+    const mockAnnotationService = {
       getAnnotationsForArticle: jest.fn().mockResolvedValue(mockAnnotations),
       trackParagraph: jest.fn().mockResolvedValue(1),
       addAnnotation: jest.fn().mockResolvedValue(1),
-    });
+    };
+
+    // Override the mock implementation for this test
+    getAnnotationService.mockResolvedValue(mockAnnotationService);
 
     // Create a ref to store the context
     const contextRef = React.createRef();
@@ -134,7 +141,7 @@ describe("AppContext Provider", () => {
       return null;
     };
 
-    const {getByTestId} = render(
+    render(
       <AppProvider>
         <ContextCapture />
         <TestComponent />
@@ -148,7 +155,7 @@ describe("AppContext Provider", () => {
 
     // Select a file
     act(() => {
-      getByTestId("selectFile").click();
+      screen.getByTestId("selectFile").click();
     });
 
     // Wait for file selection to be processed
@@ -158,19 +165,23 @@ describe("AppContext Provider", () => {
         path: "test.md",
         content: "Test content",
       });
+    });
 
-      // Check if loadAnnotations was called with the correct path
-      const annotationService = getAnnotationService.mock.results[0].value;
-      expect(annotationService.getAnnotationsForArticle).toHaveBeenCalledWith(
-        "test.md"
-      );
+    // Wait for the annotation service to be called - may take a moment due to async nature
+    await waitFor(
+      () => {
+        expect(
+          mockAnnotationService.getAnnotationsForArticle
+        ).toHaveBeenCalledWith("test.md");
+      },
+      {timeout: 3000}
+    );
 
-      // Check if the file was cached
-      const OfflineService = require("../services/OfflineService").default;
-      expect(OfflineService.cacheMarkdownFile).toHaveBeenCalledWith({
-        path: "test.md",
-        content: "Test content",
-      });
+    // Check if the file was cached
+    const OfflineService = require("../services/OfflineService").default;
+    expect(OfflineService.cacheMarkdownFile).toHaveBeenCalledWith({
+      path: "test.md",
+      content: "Test content",
     });
   });
 
@@ -187,73 +198,97 @@ describe("AppContext Provider", () => {
     });
 
     // Create a component that exposes the annotation functions
-    const AnnotationTest = () => {
+    const TestAnnotationComponent = () => {
       const {
-        setSelectedParagraphs,
+        handleParagraphClick,
         setAnnotationText,
-        setIsAnnotating,
         saveAnnotation,
         currentFile,
-        setCurrentFile,
+        handleFileSelect,
       } = useApp();
-
-      const setupAndSave = async () => {
-        await act(async () => {
-          // Setup annotation
-          setCurrentFile({path: "test.md", content: "Para 1\n\nPara 2"});
-          setSelectedParagraphs(new Set([0]));
-          setAnnotationText("Test annotation");
-          setIsAnnotating(true);
-
-          // Save annotation
-          await saveAnnotation();
-        });
-      };
 
       return (
         <div>
-          <button data-testid="setupAndSave" onClick={setupAndSave}>
-            Setup and Save
-          </button>
           <div data-testid="currentFile">
             {currentFile ? currentFile.path : "none"}
           </div>
+          <button
+            data-testid="selectFile"
+            onClick={() =>
+              handleFileSelect({path: "test.md", content: "Para 1\n\nPara 2"})
+            }
+          >
+            Select File
+          </button>
+          <button
+            data-testid="selectParagraph"
+            onClick={() => handleParagraphClick(0)}
+          >
+            Select Paragraph
+          </button>
+          <button
+            data-testid="setAnnotation"
+            onClick={() => setAnnotationText("Test annotation")}
+          >
+            Set Annotation
+          </button>
+          <button data-testid="saveAnnotation" onClick={saveAnnotation}>
+            Save Annotation
+          </button>
         </div>
       );
     };
 
-    const {getByTestId} = render(
+    render(
       <AppProvider>
-        <AnnotationTest />
+        <TestAnnotationComponent />
       </AppProvider>
     );
 
     // Wait for initialization
     await waitFor(() => {
-      expect(getByTestId("currentFile")).toBeInTheDocument();
+      expect(screen.getByTestId("currentFile")).toBeInTheDocument();
     });
 
-    // Setup and save annotation
+    // Setup and save annotation in sequence
+    // First select a file
     act(() => {
-      getByTestId("setupAndSave").click();
+      screen.getByTestId("selectFile").click();
+    });
+
+    // Wait for file to be selected
+    await waitFor(() => {
+      expect(screen.getByTestId("currentFile").textContent).toBe("test.md");
+    });
+
+    // Select paragraph
+    act(() => {
+      screen.getByTestId("selectParagraph").click();
+    });
+
+    // Set annotation text
+    act(() => {
+      screen.getByTestId("setAnnotation").click();
+    });
+
+    // Save annotation
+    act(() => {
+      screen.getByTestId("saveAnnotation").click();
     });
 
     // Verify the annotation was saved
     await waitFor(() => {
-      // Check if trackParagraph was called
       expect(trackParagraphMock).toHaveBeenCalled();
-
-      // Check if addAnnotation was called with the correct parameters
-      expect(addAnnotationMock).toHaveBeenCalledWith({
-        articleId: "test.md",
-        paragraphIndex: 0,
-        text: "Test annotation",
-        type: "note",
-      });
-
-      // Check if getAnnotationsForArticle was called to refresh annotations
-      expect(getAnnotationsMock).toHaveBeenCalledWith("test.md");
     });
+
+    expect(addAnnotationMock).toHaveBeenCalledWith({
+      articleId: "test.md",
+      paragraphIndex: 0,
+      text: "Test annotation",
+      type: "note",
+    });
+
+    expect(getAnnotationsMock).toHaveBeenCalledWith("test.md");
   });
 
   test("handleImport updates files and saves to storage", async () => {
@@ -269,20 +304,14 @@ describe("AppContext Provider", () => {
     const ImportTest = () => {
       const {handleImport, files, isImporting, isSidebarVisible} = useApp();
 
-      const importFiles = async () => {
-        const testFiles = [
-          {path: "file1.md", content: "Content 1"},
-          {path: "file2.md", content: "Content 2"},
-        ];
-
-        await act(async () => {
-          await handleImport(testFiles);
-        });
-      };
+      const testFiles = [
+        {path: "file1.md", content: "Content 1"},
+        {path: "file2.md", content: "Content 2"},
+      ];
 
       return (
         <div>
-          <button data-testid="import" onClick={importFiles}>
+          <button data-testid="import" onClick={() => handleImport(testFiles)}>
             Import Files
           </button>
           <div data-testid="fileCount">{files.length}</div>
@@ -294,7 +323,7 @@ describe("AppContext Provider", () => {
       );
     };
 
-    const {getByTestId} = render(
+    render(
       <AppProvider>
         <ImportTest />
       </AppProvider>
@@ -302,31 +331,34 @@ describe("AppContext Provider", () => {
 
     // Wait for initialization
     await waitFor(() => {
-      expect(getByTestId("fileCount")).toBeInTheDocument();
+      expect(screen.getByTestId("fileCount")).toBeInTheDocument();
     });
 
     // Import files
     act(() => {
-      getByTestId("import").click();
+      screen.getByTestId("import").click();
     });
 
-    // Verify the import results
+    // Verify files were updated
     await waitFor(() => {
-      // Files should be updated
-      expect(getByTestId("fileCount").textContent).toBe("2");
-
-      // Import mode should be turned off
-      expect(getByTestId("isImporting").textContent).toBe("false");
-
-      // Sidebar should be visible
-      expect(getByTestId("isSidebarVisible").textContent).toBe("true");
-
-      // Files should be saved to storage
-      const fileStorageService = getFileStorageService.mock.results[0].value;
-      expect(saveFilesMock).toHaveBeenCalledWith([
-        {path: "file1.md", content: "Content 1"},
-        {path: "file2.md", content: "Content 2"},
-      ]);
+      expect(screen.getByTestId("fileCount").textContent).toBe("2");
     });
+
+    // Verify import mode is turned off
+    await waitFor(() => {
+      expect(screen.getByTestId("isImporting").textContent).toBe("false");
+    });
+
+    // Verify sidebar is visible
+    await waitFor(() => {
+      expect(screen.getByTestId("isSidebarVisible").textContent).toBe("true");
+    });
+
+    // Verify files were saved to storage
+    const fileStorageService = getFileStorageService.mock.results[0].value;
+    expect(saveFilesMock).toHaveBeenCalledWith([
+      {path: "file1.md", content: "Content 1"},
+      {path: "file2.md", content: "Content 2"},
+    ]);
   });
 });

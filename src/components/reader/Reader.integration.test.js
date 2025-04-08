@@ -3,6 +3,8 @@ import React from "react";
 import {render, screen, fireEvent, waitFor} from "@testing-library/react";
 import Reader from "./Reader";
 import {AppProvider} from "../../contexts/AppContext";
+import {useApp} from "../../contexts/AppContext";
+import {useFileNavigation} from "../../hooks/useFileNavigation";
 
 // Mock the services
 jest.mock("../../services/AssetService");
@@ -10,8 +12,8 @@ jest.mock("../../services/ImportService");
 
 // Mock the components
 jest.mock("../../components/shared/MarkdownRenderer");
-jest.mock("./Navigation", () => require("./__mocks__/Navigation"));
-jest.mock("./Import", () => require("./__mocks__/Import"));
+jest.mock("./Navigation");
+jest.mock("./Import");
 
 // Mock the AppContext
 jest.mock("../../contexts/AppContext", () => {
@@ -32,15 +34,6 @@ jest.mock("../../hooks/useFileNavigation", () => ({
     navigatePrevious: jest.fn(),
   }),
 }));
-
-// Import the mocked hooks and components
-import {useApp} from "../../contexts/AppContext";
-import {useFileNavigation} from "../../hooks/useFileNavigation";
-
-// Create a custom render function that includes the AppProvider
-const renderWithProvider = (ui, providerProps = {}) => {
-  return render(<AppProvider {...providerProps}>{ui}</AppProvider>);
-};
 
 describe("Reader Component Integration", () => {
   // Mock app context default values
@@ -101,20 +94,25 @@ describe("Reader Component Integration", () => {
 
   test("renders content and navigation when file is selected", async () => {
     // Use default mockAppContextValue
-
     render(<Reader />);
 
-    // Wait for content to be rendered
+    // Test the SwipeableContainer presence
     await waitFor(() => {
-      // The SwipeableContainer should be rendered
       expect(screen.getByTestId("swipeable-container")).toBeInTheDocument();
+    });
 
-      // The ArticleNavigation component should be rendered - use getAllByLabelText and check length
+    // Test that ArticleNavigation is present
+    await waitFor(() => {
       const nextButtons = screen.getAllByLabelText("Next article");
       expect(nextButtons.length).toBeGreaterThan(0);
+    });
 
-      // The mocked MarkdownRenderer should be rendered
+    // Test MarkdownRenderer is present
+    await waitFor(() => {
       expect(screen.getByTestId("mock-markdown-renderer")).toBeInTheDocument();
+    });
+
+    await waitFor(() => {
       expect(screen.getByTestId("mock-markdown-content")).toBeInTheDocument();
     });
   });
@@ -129,12 +127,18 @@ describe("Reader Component Integration", () => {
 
     render(<Reader />);
 
-    // Find and click the menu button in the header
+    // Find menu button
+    let menuButton;
     await waitFor(() => {
-      const menuButton = screen.getByLabelText("Open menu");
-      fireEvent.click(menuButton);
+      menuButton = screen.getByLabelText("Open menu");
+      expect(menuButton).toBeInTheDocument();
+    });
 
-      // Check if the state updater was called correctly
+    // Click outside of waitFor
+    fireEvent.click(menuButton);
+
+    // Check if the state updater was called correctly
+    await waitFor(() => {
       expect(setIsSidebarVisible).toHaveBeenCalledWith(true);
     });
   });
@@ -154,22 +158,30 @@ describe("Reader Component Integration", () => {
     render(<Reader />);
 
     // Find the SwipeableContainer
-    const container = screen.getByTestId("swipeable-container");
+    let container;
+    await waitFor(() => {
+      container = screen.getByTestId("swipeable-container");
+      expect(container).toBeInTheDocument();
+    });
 
-    // Simulate a swipe left
+    // Simulate a swipe left (outside of waitFor)
     fireEvent.touchStart(container, {touches: [{clientX: 500}]});
     fireEvent.touchMove(container, {touches: [{clientX: 200}]});
     fireEvent.touchEnd(container);
 
     // Check if navigateNext was called
-    expect(navigateNext).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(navigateNext).toHaveBeenCalled();
+    });
 
-    // Simulate a swipe right
+    // Simulate a swipe right (outside of waitFor)
     fireEvent.touchStart(container, {touches: [{clientX: 500}]});
     fireEvent.touchMove(container, {touches: [{clientX: 800}]});
     fireEvent.touchEnd(container);
 
     // Check if navigatePrevious was called
-    expect(navigatePrevious).toHaveBeenCalled();
+    await waitFor(() => {
+      expect(navigatePrevious).toHaveBeenCalled();
+    });
   });
 });
