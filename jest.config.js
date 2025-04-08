@@ -17,7 +17,9 @@ module.exports = {
   transform: {
     "^.+\\.(js|jsx)$": "babel-jest",
   },
-  transformIgnorePatterns: ["/node_modules/(?!lucide-react).+\\.js$"],
+  transformIgnorePatterns: [
+    "/node_modules/(?!(lucide-react|react-markdown|remark-parse|mdast-util-from-markdown|micromark|micromark-core-commonmark|micromark-util-decode-numeric-character-reference|micromark-util-character|micromark-util-resolve-all|unist-util-visit|unist-util-visit-parents|hast-util-from-html)/)",
+  ],
   testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/cypress/"],
   collectCoverageFrom: [
     "src/**/*.{js,jsx}",
