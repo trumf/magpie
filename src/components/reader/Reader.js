@@ -69,10 +69,10 @@ const Reader = () => {
         {currentFile ? (
           <>
             <SwipeableContainer
-              onSwipeLeft={handleSwipeLeft}
-              onSwipeRight={handleSwipeRight}
-              canSwipeLeft={hasNext}
-              canSwipeRight={hasPrevious}
+              onNext={origNavigateNext}
+              onPrevious={origNavigatePrevious}
+              hasNext={hasNext}
+              hasPrevious={hasPrevious}
             >
               <Content />
             </SwipeableContainer>

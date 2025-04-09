@@ -5,17 +5,11 @@ import SwipeableContainer from "./SwipeableContainer";
 
 describe("SwipeableContainer Component", () => {
   // Mock the event handlers
-  const mockSwipeLeft = jest.fn();
-  const mockSwipeRight = jest.fn();
+  const mockOnNext = jest.fn();
+  const mockOnPrevious = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Mock setTimeout in tests
-    jest.useFakeTimers();
-  });
-
-  afterEach(() => {
-    jest.useRealTimers();
   });
 
   test("renders children correctly", () => {
@@ -29,149 +23,111 @@ describe("SwipeableContainer Component", () => {
     expect(screen.getByText("Test Content")).toBeInTheDocument();
   });
 
-  test("handles mouse down, move, and up events", () => {
+  test("navigates to next page on swipe left", () => {
     render(
       <SwipeableContainer
-        onSwipeLeft={mockSwipeLeft}
-        onSwipeRight={mockSwipeRight}
-        canSwipeLeft={true}
-        canSwipeRight={true}
+        onNext={mockOnNext}
+        onPrevious={mockOnPrevious}
+        hasNext={true}
+        hasPrevious={true}
       >
-        <div>Swipeable Content</div>
+        <div>Test Content</div>
       </SwipeableContainer>
     );
 
     const container = screen.getByTestId("swipeable-container");
 
-    // Simulate mouse down
-    fireEvent.mouseDown(container, {clientX: 500});
+    // Touch events for swipe left
+    fireEvent.touchStart(container, {touches: [{clientX: 500, clientY: 200}]});
+    fireEvent.touchMove(container, {touches: [{clientX: 300, clientY: 200}]});
+    fireEvent.touchEnd(container, {
+      changedTouches: [{clientX: 300, clientY: 200}],
+    });
 
-    // Simulate mouse move to the left (which would trigger a right swipe)
-    fireEvent.mouseMove(container, {clientX: 200});
-
-    // Simulate mouse up
-    fireEvent.mouseUp(container);
-
-    // Check if the swipe event was triggered
-    expect(mockSwipeLeft).toHaveBeenCalledTimes(1);
-    expect(mockSwipeRight).not.toHaveBeenCalled();
+    expect(mockOnNext).toHaveBeenCalledTimes(1);
+    expect(mockOnPrevious).not.toHaveBeenCalled();
   });
 
-  test("handles touch events", () => {
+  test("navigates to previous page on swipe right", () => {
     render(
       <SwipeableContainer
-        onSwipeLeft={mockSwipeLeft}
-        onSwipeRight={mockSwipeRight}
-        canSwipeLeft={true}
-        canSwipeRight={true}
+        onNext={mockOnNext}
+        onPrevious={mockOnPrevious}
+        hasNext={true}
+        hasPrevious={true}
       >
-        <div>Swipeable Content</div>
+        <div>Test Content</div>
       </SwipeableContainer>
     );
 
     const container = screen.getByTestId("swipeable-container");
 
-    // Simulate touch start
-    fireEvent.touchStart(container, {touches: [{clientX: 500}]});
+    // Touch events for swipe right
+    fireEvent.touchStart(container, {touches: [{clientX: 300, clientY: 200}]});
+    fireEvent.touchMove(container, {touches: [{clientX: 500, clientY: 200}]});
+    fireEvent.touchEnd(container, {
+      changedTouches: [{clientX: 500, clientY: 200}],
+    });
 
-    // Simulate touch move to the right (which would trigger a left swipe)
-    fireEvent.touchMove(container, {touches: [{clientX: 800}]});
-
-    // Simulate touch end
-    fireEvent.touchEnd(container);
-
-    // Check if the swipe event was triggered
-    expect(mockSwipeRight).toHaveBeenCalledTimes(1);
-    expect(mockSwipeLeft).not.toHaveBeenCalled();
+    expect(mockOnPrevious).toHaveBeenCalledTimes(1);
+    expect(mockOnNext).not.toHaveBeenCalled();
   });
 
-  test("respects canSwipe props", () => {
+  test("respects hasNext and hasPrevious props", () => {
     render(
       <SwipeableContainer
-        onSwipeLeft={mockSwipeLeft}
-        onSwipeRight={mockSwipeRight}
-        canSwipeLeft={false} // Disable swipe left
-        canSwipeRight={true}
+        onNext={mockOnNext}
+        onPrevious={mockOnPrevious}
+        hasNext={false}
+        hasPrevious={false}
       >
-        <div>Swipeable Content</div>
+        <div>Test Content</div>
       </SwipeableContainer>
     );
 
     const container = screen.getByTestId("swipeable-container");
 
-    // Simulate touch start
-    fireEvent.touchStart(container, {touches: [{clientX: 500}]});
+    // Try to swipe left (next) when hasNext is false
+    fireEvent.touchStart(container, {touches: [{clientX: 500, clientY: 200}]});
+    fireEvent.touchMove(container, {touches: [{clientX: 300, clientY: 200}]});
+    fireEvent.touchEnd(container, {
+      changedTouches: [{clientX: 300, clientY: 200}],
+    });
 
-    // Simulate touch move to the left - should be ignored
-    fireEvent.touchMove(container, {touches: [{clientX: 200}]});
+    expect(mockOnNext).not.toHaveBeenCalled();
 
-    // Simulate touch end
-    fireEvent.touchEnd(container);
+    // Try to swipe right (previous) when hasPrevious is false
+    fireEvent.touchStart(container, {touches: [{clientX: 300, clientY: 200}]});
+    fireEvent.touchMove(container, {touches: [{clientX: 500, clientY: 200}]});
+    fireEvent.touchEnd(container, {
+      changedTouches: [{clientX: 500, clientY: 200}],
+    });
 
-    // No swipe event should be triggered
-    expect(mockSwipeLeft).not.toHaveBeenCalled();
-
-    // Now try right swipe which should work
-    fireEvent.touchStart(container, {touches: [{clientX: 500}]});
-    fireEvent.touchMove(container, {touches: [{clientX: 800}]});
-    fireEvent.touchEnd(container);
-
-    expect(mockSwipeRight).toHaveBeenCalledTimes(1);
+    expect(mockOnPrevious).not.toHaveBeenCalled();
   });
 
-  test("resets drag state on mouse leave", () => {
+  test("allows vertical scrolling without triggering navigation", () => {
     render(
       <SwipeableContainer
-        onSwipeLeft={mockSwipeLeft}
-        onSwipeRight={mockSwipeRight}
-        canSwipeLeft={true}
-        canSwipeRight={true}
+        onNext={mockOnNext}
+        onPrevious={mockOnPrevious}
+        hasNext={true}
+        hasPrevious={true}
       >
-        <div>Swipeable Content</div>
+        <div>Test Content</div>
       </SwipeableContainer>
     );
 
     const container = screen.getByTestId("swipeable-container");
 
-    // Start dragging
-    fireEvent.mouseDown(container, {clientX: 500});
+    // Vertical swipe
+    fireEvent.touchStart(container, {touches: [{clientX: 300, clientY: 200}]});
+    fireEvent.touchMove(container, {touches: [{clientX: 300, clientY: 400}]});
+    fireEvent.touchEnd(container, {
+      changedTouches: [{clientX: 300, clientY: 400}],
+    });
 
-    // Mouse leaves the container
-    fireEvent.mouseLeave(container);
-
-    // Finish dragging outside - this shouldn't trigger a swipe
-    fireEvent.mouseUp(document.body);
-
-    // No swipe should have been triggered
-    expect(mockSwipeLeft).not.toHaveBeenCalled();
-    expect(mockSwipeRight).not.toHaveBeenCalled();
-  });
-
-  test("cancels swipe if movement is too small", () => {
-    render(
-      <SwipeableContainer
-        onSwipeLeft={mockSwipeLeft}
-        onSwipeRight={mockSwipeRight}
-        canSwipeLeft={true}
-        canSwipeRight={true}
-      >
-        <div>Swipeable Content</div>
-      </SwipeableContainer>
-    );
-
-    const container = screen.getByTestId("swipeable-container");
-
-    // Start touch
-    fireEvent.touchStart(container, {touches: [{clientX: 500}]});
-
-    // Move just a tiny bit
-    fireEvent.touchMove(container, {touches: [{clientX: 520}]});
-
-    // End touch
-    fireEvent.touchEnd(container);
-
-    // No swipe should be triggered
-    expect(mockSwipeLeft).not.toHaveBeenCalled();
-    expect(mockSwipeRight).not.toHaveBeenCalled();
+    expect(mockOnNext).not.toHaveBeenCalled();
+    expect(mockOnPrevious).not.toHaveBeenCalled();
   });
 });
