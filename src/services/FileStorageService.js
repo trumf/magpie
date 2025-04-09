@@ -73,9 +73,6 @@ class FileStorageService {
 
       const store = transaction.objectStore("files");
 
-      // Clear existing files
-      store.clear();
-
       // Add all new files with timestamp
       const timestamp = new Date().toISOString();
       let completed = 0;
@@ -87,7 +84,8 @@ class FileStorageService {
           lastAccessed: timestamp,
         };
 
-        const request = store.add(fileWithTimestamp);
+        // Use put instead of add to replace existing files with the same path
+        const request = store.put(fileWithTimestamp);
 
         request.onsuccess = () => {
           completed++;

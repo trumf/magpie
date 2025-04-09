@@ -35,16 +35,22 @@ const mockDb = {
   onerror: null,
 };
 
+// Save the original indexedDB
+const originalIndexedDB = global.indexedDB;
+
 // Setup and teardown
 beforeEach(() => {
   // Clear all mocks
   jest.clearAllMocks();
 
   // Setup IndexedDB mock behavior
-  global.indexedDB = {
+  const mockIndexedDB = {
     open: jest.fn().mockReturnValue(mockRequest),
     deleteDatabase: jest.fn().mockReturnValue({...mockRequest}),
   };
+
+  // Replace it for testing
+  global.indexedDB = mockIndexedDB;
 
   // Set up the mock so that when onsuccess is assigned and called, it sets the expected db object
   Object.defineProperty(mockRequest, "onsuccess", {
@@ -78,6 +84,10 @@ beforeEach(() => {
 
   // Set the default result for successful operations
   mockRequest.result = mockDb;
+});
+
+afterEach(() => {
+  global.indexedDB = originalIndexedDB;
 });
 
 describe("FileStorageService", () => {

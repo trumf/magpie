@@ -190,7 +190,22 @@ export const AppProvider = ({children}) => {
   const handleImport = useCallback(
     async (importedFiles, dirHandle) => {
       try {
-        setFiles(importedFiles);
+        // Merge imported files with existing files instead of replacing them
+        setFiles((prevFiles) => {
+          // Create a map of existing files by path for easy lookup
+          const existingFilesMap = new Map(
+            prevFiles.map((file) => [file.path, file])
+          );
+
+          // Add or update files from the import
+          importedFiles.forEach((file) => {
+            existingFilesMap.set(file.path, file);
+          });
+
+          // Convert the map back to an array
+          return Array.from(existingFilesMap.values());
+        });
+
         setDirectoryHandle(dirHandle);
         setIsImporting(false);
 

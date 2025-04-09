@@ -152,6 +152,9 @@ const setupMockIndexedDB = () => {
     close: jest.fn(),
   };
 
+  // Save original indexedDB for cleanup
+  const originalIndexedDB = global.indexedDB;
+
   // Mock IndexedDB
   global.indexedDB = {
     open: (dbName, version) => {
@@ -194,6 +197,9 @@ const setupMockIndexedDB = () => {
     clearData: () => {
       dbData = {files: []};
     },
+    cleanup: () => {
+      global.indexedDB = originalIndexedDB;
+    },
   };
 };
 
@@ -204,6 +210,10 @@ describe("IndexedDB Persistence Tests", () => {
     jest.resetModules(); // Clear cache for singleton pattern
     mockDBControls = setupMockIndexedDB();
     mockDBControls.clearData(); // Start fresh
+  });
+
+  afterEach(() => {
+    mockDBControls.cleanup(); // Restore original indexedDB
   });
 
   it("should save files and be able to retrieve them later", async () => {

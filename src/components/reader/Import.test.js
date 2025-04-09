@@ -15,7 +15,7 @@ jest.mock("../../services/ImportService", () => ({
 }));
 
 // Mock the IndexedDB
-const indexedDB = {
+const mockIndexedDB = {
   open: jest.fn().mockReturnValue({
     onupgradeneeded: jest.fn(),
     onsuccess: jest.fn(),
@@ -23,16 +23,26 @@ const indexedDB = {
   }),
 };
 
+// Save original indexedDB
+const originalIndexedDB = global.indexedDB;
+
 // Mock window.showDirectoryPicker
 const mockShowDirectoryPicker = jest.fn();
+const originalShowDirectoryPicker = window.showDirectoryPicker;
 
 describe("Import Component", () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
     // Mock global objects
-    global.indexedDB = indexedDB;
+    global.indexedDB = mockIndexedDB;
     global.window.showDirectoryPicker = mockShowDirectoryPicker;
+  });
+
+  afterEach(() => {
+    // Restore original values
+    global.indexedDB = originalIndexedDB;
+    global.window.showDirectoryPicker = originalShowDirectoryPicker;
   });
 
   it("renders import options", async () => {
