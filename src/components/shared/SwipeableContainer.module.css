@@ -3,20 +3,15 @@
 .container {
   position: relative;
   width: 100%;
-
+  overflow: hidden;
   touch-action: pan-y;
   user-select: none;
   -webkit-tap-highlight-color: transparent;
-  z-index: 1;
 }
 
 .content {
-  position: relative;
   width: 100%;
-  min-height: 10px;
   will-change: transform;
-  transition: transform 0.3s ease-out;
-  z-index: 1;
 }
 
 .leftIndicator,
@@ -32,9 +27,9 @@
   align-items: center;
   justify-content: center;
   box-shadow: var(--shadow-md);
-  z-index: 2;
+  opacity: 0.5;
   pointer-events: none;
-  color: var(--color-text-primary);
+  transition: opacity 0.3s;
 }
 
 .leftIndicator {
@@ -45,58 +40,16 @@
   right: 16px;
 }
 
-/* Progress indicator bar - shows threshold progress */
-.progressIndicator {
-  position: absolute;
-  bottom: 0;
-  height: 4px;
-  background: var(--color-primary);
-  opacity: 0.7;
-  transition: width 0.1s ease-out;
-  border-radius: 2px;
-  z-index: 2;
+.container:active .leftIndicator,
+.container:active .rightIndicator {
+  opacity: 0.8;
 }
 
-/* Adding more explicit styles for dark mode */
-:global(.dark-theme) .leftIndicator,
-:global(.dark-theme) .rightIndicator {
-  background-color: var(--color-surface);
-  color: var(--color-text-primary);
-}
-
-/* Enhanced mobile styles */
-@media (pointer: coarse) {
-  .container {
-    /* Make the component respond better to touch */
-    /* touch-action: none;*/
-  }
-
-  /* Make indicators larger on touch devices */
+/* Media query for mobile devices */
+@media (max-width: 768px) {
   .leftIndicator,
   .rightIndicator {
-    width: 48px;
-    height: 48px;
-  }
-
-  /* Larger progress indicator for mobile */
-  .progressIndicator {
-    height: 6px;
-  }
-}
-
-/* Visual feedback for active state */
-.container:active .content {
-  transition: none;
-}
-
-/* Accessibility considerations */
-@media (prefers-reduced-motion: reduce) {
-  .content {
-    transition: none;
-  }
-
-  .leftIndicator,
-  .rightIndicator {
-    transform: translateY(-50%) !important;
+    width: 36px;
+    height: 36px;
   }
 }
