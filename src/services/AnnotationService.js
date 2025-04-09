@@ -5,7 +5,7 @@ let instance = null;
 class AnnotationService {
   constructor() {
     this.dbName = "markdownDB";
-    this.version = 2;
+    this.version = 3;
     this.db = null;
   }
 

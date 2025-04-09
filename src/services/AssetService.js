@@ -104,9 +104,6 @@ class AssetService {
       await this.initialize();
 
       const {blob, name, originalPath} = asset;
-
-      // Create a unique ID for the asset
-      // (filename + hash of path to avoid collisions)
       const pathHash = this.hashString(originalPath || name);
       const id = `asset_${pathHash}_${name}`;
 
@@ -121,27 +118,48 @@ class AssetService {
       // Only try to store in IndexedDB if we have a database connection
       if (this.db) {
         try {
-          // Store in IndexedDB for persistence
-          const transaction = this.db.transaction(["assets"], "readwrite");
-          const store = transaction.objectStore("assets");
-
-          // Convert blob to ArrayBuffer for storage
+          // Convert blob to ArrayBuffer for storage first
           const arrayBuffer = await blob.arrayBuffer();
 
-          await new Promise((resolve, reject) => {
-            const request = store.put({
-              id,
-              name,
-              originalPath,
-              arrayBuffer,
-              mimeType: blob.type || this.getMimeTypeFromFilename(name),
-              timestamp: new Date().toISOString(),
-            });
+          // Create the asset object
+          const assetData = {
+            id,
+            name,
+            originalPath,
+            arrayBuffer,
+            mimeType: blob.type || this.getMimeTypeFromFilename(name),
+            timestamp: new Date().toISOString(),
+          };
 
-            request.onsuccess = () => resolve();
+          // Then do the database operation with transaction handling
+          await new Promise((resolve, reject) => {
+            // Create transaction AFTER preparing all data
+            const transaction = this.db.transaction(["assets"], "readwrite");
+            const store = transaction.objectStore("assets");
+
+            // Handle transaction lifecycle events
+            transaction.oncomplete = () => {
+              console.log(`Asset stored successfully: ${name}`);
+              resolve();
+            };
+
+            transaction.onerror = (event) => {
+              console.error("Transaction error:", event.target.error);
+              reject(event.target.error);
+            };
+
+            transaction.onabort = (event) => {
+              console.error("Transaction aborted:", event.target.error);
+              reject(event.target.error);
+            };
+
+            // Add the actual request within the transaction
+            const request = store.put(assetData);
+
             request.onerror = (event) => {
-              console.error("Error in store.put:", event);
-              reject(new Error("Failed to store asset in database"));
+              // This error handler is for the specific request
+              console.error("Request error:", event.target.error);
+              // No need to reject here as transaction.onerror will be triggered too
             };
           });
         } catch (dbError) {

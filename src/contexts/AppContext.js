@@ -62,10 +62,12 @@ export const AppProvider = ({children}) => {
   );
 
   // Add to combined service initialization
+  // Add to combined service initialization
   useEffect(() => {
     let mounted = true;
 
     const initServices = async () => {
+      console.log("Initializing services...");
       try {
         // Initialize services
         const storage = await getFileStorageService();
@@ -78,15 +80,56 @@ export const AppProvider = ({children}) => {
         setAnnotationService(annotation);
         setAssetService(asset);
 
-        // Load saved files
+        // Load saved files from IndexedDB
         try {
+          console.log("Loading saved files from IndexedDB...");
           const savedFiles = await storage.getFiles();
           if (savedFiles.length > 0 && mounted) {
             setFiles(savedFiles);
             setIsImporting(false);
+            console.log(`Loaded ${savedFiles.length} files from IndexedDB`);
+          } else {
+            // Try loading from localStorage if IndexedDB is empty
+            const fileIndexString = localStorage.getItem("magpieFileIndex");
+            if (fileIndexString) {
+              try {
+                const fileIndex = JSON.parse(fileIndexString);
+                if (fileIndex.length > 0) {
+                  console.log(
+                    `Found ${fileIndex.length} file references in localStorage, attempting to restore`
+                  );
+                  // Since we don't store content in localStorage, we should show the import screen
+                  // but pre-populate with the file metadata we have
+                  setFiles(fileIndex);
+                  // Still keep isImporting true so user can re-import the actual content
+                }
+              } catch (parseError) {
+                console.error(
+                  "Error parsing localStorage file index:",
+                  parseError
+                );
+              }
+            }
           }
         } catch (error) {
           console.error("Error loading saved files:", error);
+
+          // Recovery attempt from localStorage
+          try {
+            const fileIndexString = localStorage.getItem("magpieFileIndex");
+            if (fileIndexString) {
+              const fileIndex = JSON.parse(fileIndexString);
+              if (fileIndex.length > 0 && mounted) {
+                console.log(
+                  `Recovered ${fileIndex.length} file references from localStorage`
+                );
+                // Show these in UI but keep isImporting true
+                setFiles(fileIndex);
+              }
+            }
+          } catch (lsError) {
+            console.error("Error recovering from localStorage:", lsError);
+          }
         }
 
         if (mounted) {
@@ -190,7 +233,7 @@ export const AppProvider = ({children}) => {
   const handleImport = useCallback(
     async (importedFiles, dirHandle) => {
       try {
-        // Merge imported files with existing files instead of replacing them
+        // First update the UI state
         setFiles((prevFiles) => {
           // Create a map of existing files by path for easy lookup
           const existingFilesMap = new Map(
@@ -208,13 +251,37 @@ export const AppProvider = ({children}) => {
 
         setDirectoryHandle(dirHandle);
         setIsImporting(false);
-
-        // When files are imported, set the sidebar to visible
         setIsSidebarVisible(true);
 
-        // Save imported files to persistent storage
+        // Then attempt to persist to IndexedDB
         if (fileStorageService) {
-          await fileStorageService.saveFiles(importedFiles);
+          try {
+            console.log("Saving files to IndexedDB...");
+            await fileStorageService.saveFiles(importedFiles);
+            console.log("Files saved to IndexedDB successfully");
+          } catch (dbError) {
+            console.error("Error saving to IndexedDB:", dbError);
+
+            // Fallback to localStorage for critical metadata
+            try {
+              // Only store minimal data (paths and names) to avoid localStorage size limits
+              const minimalData = importedFiles.map((file) => ({
+                path: file.path,
+                name: file.name,
+                type: file.type,
+                // Don't include the full content in localStorage to avoid size limits
+                hasContent: !!file.content,
+              }));
+
+              localStorage.setItem(
+                "magpieFileIndex",
+                JSON.stringify(minimalData)
+              );
+              console.log("File index saved to localStorage as fallback");
+            } catch (lsError) {
+              console.error("Error saving to localStorage:", lsError);
+            }
+          }
         }
       } catch (error) {
         console.error("Import error:", error);

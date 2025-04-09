@@ -5,6 +5,7 @@ import "./styles/global.css"; // 3. Global styles that use theme variables
 import React, {useState, useEffect} from "react";
 import {AppProvider} from "./contexts/AppContext";
 import Reader from "./components/reader/Reader";
+import ImprovedStorageDemo from "./components/ImprovedStorageDemo";
 
 // Service Worker Registration
 const registerServiceWorker = async () => {
@@ -125,6 +126,7 @@ const processQueryParams = () => {
   return {
     importMode: params.get("import") === "true",
     viewMode: params.get("view") || "default",
+    showDemo: params.get("demo") === "true",
   };
 };
 

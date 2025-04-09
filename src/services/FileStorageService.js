@@ -3,7 +3,7 @@
 class FileStorageService {
   constructor() {
     this.dbName = "markdownDB";
-    this.version = 2; // Start with version 1
+    this.version = 3;
     this.db = null;
   }
 
