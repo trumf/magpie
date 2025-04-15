@@ -236,7 +236,7 @@ export const AnnotationSystem = (function () {
     setupSelectionListener: function () {
       if (!currentDocument) return;
 
-      currentDocument.addEventListener("mouseup", (e) => {
+      currentDocument.addEventListener("pointerup", (e) => {
         const selection = window.getSelection();
 
         // Only proceed if there's actual text selected
