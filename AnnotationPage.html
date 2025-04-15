@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Annotation Viewer</title>
+    <link rel="stylesheet" href="annotation-styles.css" />
+    <link rel="stylesheet" href="styles/reset.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid #ddd;
+      }
+
+      .header h1 {
+        font-size: 24px;
+        font-weight: 500;
+      }
+
+      .header .actions {
+        display: flex;
+        gap: 10px;
+      }
+
+      .search-bar {
+        margin-bottom: 20px;
+        display: flex;
+      }
+
+      .search-bar input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid #ddd;
+        border-radius: 4px 0 0 4px;
+        font-size: 14px;
+      }
+
+      .search-bar button {
+        padding: 8px 16px;
+        background-color: #0366d6;
+        color: white;
+        border: none;
+        border-radius: 0 4px 4px 0;
+        cursor: pointer;
+      }
+
+      .filters {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+      }
+
+      .filter-button {
+        padding: 6px 12px;
+        background-color: #f5f5f5;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      .filter-button.active {
+        background-color: #e0e0e0;
+        font-weight: bold;
+      }
+
+      .annotation-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+        gap: 20px;
+      }
+
+      .annotation-item {
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 16px;
+        background-color: #f9f9f9;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .annotation-item:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .annotation-quote {
+        font-style: italic;
+        margin-bottom: 10px;
+        color: #555;
+        padding: 8px;
+        background-color: #f0f0f0;
+        border-left: 3px solid #0366d6;
+      }
+
+      .annotation-note {
+        margin-bottom: 10px;
+      }
+
+      .annotation-meta {
+        font-size: 12px;
+        color: #666;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .annotation-file {
+        display: inline-block;
+      }
+
+      .annotation-date {
+        display: inline-block;
+      }
+
+      .annotation-tags {
+        display: inline-block;
+        background-color: #eef;
+        padding: 2px 6px;
+        border-radius: 3px;
+      }
+
+      .file-link {
+        color: #0366d6;
+        text-decoration: none;
+      }
+
+      .file-link:hover {
+        text-decoration: underline;
+      }
+
+      .empty-state {
+        text-align: center;
+        padding: 50px 0;
+        color: #666;
+      }
+
+      .back-link {
+        display: inline-block;
+        margin-bottom: 20px;
+        color: #0366d6;
+        text-decoration: none;
+      }
+
+      .back-link:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 768px) {
+        .annotation-list {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <a href="MarkdownZipViewer.html" class="back-link">← Back to Viewer</a>
+
+      <div class="header">
+        <h1>Annotation Viewer</h1>
+        <div class="actions">
+          <button id="export-btn" class="filter-button">
+            Export Annotations
+          </button>
+        </div>
+      </div>
+
+      <div class="search-bar">
+        <input
+          type="text"
+          id="search-input"
+          placeholder="Search annotations..."
+        />
+        <button id="search-btn">Search</button>
+      </div>
+
+      <div class="filters">
+        <button class="filter-button active" data-filter="all">
+          All Annotations
+        </button>
+        <button class="filter-button" data-filter="recent">Recent</button>
+        <div
+          class="tag-filter-container"
+          style="margin-left: auto; display: flex; align-items: center"
+        >
+          <span style="margin-right: 8px; font-size: 14px">Filter by tag:</span>
+          <select
+            id="tag-filter"
+            style="padding: 6px; border-radius: 4px; border: 1px solid #ddd"
+          >
+            <option value="">Select a tag</option>
+            <!-- Tag options will be populated dynamically -->
+          </select>
+          <button
+            id="apply-tag-filter"
+            class="filter-button"
+            style="margin-left: 8px"
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+
+      <div id="annotation-container">
+        <div class="empty-state">
+          <p>Loading annotations...</p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module">
+      import {AnnotationViewer} from "./AnnotationViewer.js";
+
+      // Initialize the AnnotationViewer
+      const annotationViewer = new AnnotationViewer({
+        statusCallback: (type, message) => {
+          console.log(`[${type}] ${message}`);
+        },
+      });
+
+      // DOM elements
+      const searchInput = document.getElementById("search-input");
+      const searchBtn = document.getElementById("search-btn");
+      const exportBtn = document.getElementById("export-btn");
+      const annotationContainer = document.getElementById(
+        "annotation-container"
+      );
+      const filterButtons = document.querySelectorAll(
+        ".filter-button[data-filter]"
+      );
+      const tagFilter = document.getElementById("tag-filter");
+      const applyTagFilterBtn = document.getElementById("apply-tag-filter");
+
+      // Event handlers
+      searchBtn.addEventListener("click", handleSearch);
+      searchInput.addEventListener("keyup", (event) => {
+        if (event.key === "Enter") {
+          handleSearch();
+        }
+      });
+
+      exportBtn.addEventListener("click", handleExport);
+
+      // Add event handler for tag filter
+      applyTagFilterBtn.addEventListener("click", handleTagFilter);
+
+      filterButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          // Remove active class from all filter buttons
+          filterButtons.forEach((btn) => btn.classList.remove("active"));
+
+          // Add active class to clicked button
+          button.classList.add("active");
+
+          const filter = button.dataset.filter;
+          handleFilter(filter);
+        });
+      });
+
+      // Load annotations when page loads
+      document.addEventListener("DOMContentLoaded", async () => {
+        try {
+          await loadAllAnnotations();
+          await populateTagDropdown();
+        } catch (error) {
+          console.error("Error loading annotations:", error);
+          showError("Failed to load annotations. Please try again.");
+        }
+      });
+
+      // Populate the tag dropdown with unique tags from all annotations
+      async function populateTagDropdown() {
+        try {
+          await annotationViewer.initialize();
+          const annotations = await annotationViewer.getAllAnnotations();
+
+          // Extract all tags from all annotations
+          const allTags = new Set();
+          annotations.forEach((annotation) => {
+            if (annotation.tags && Array.isArray(annotation.tags)) {
+              annotation.tags.forEach((tag) => allTags.add(tag));
+            }
+          });
+
+          // Sort tags alphabetically
+          const sortedTags = Array.from(allTags).sort();
+
+          // Clear existing options except the default one
+          while (tagFilter.options.length > 1) {
+            tagFilter.remove(1);
+          }
+
+          // Add options for each tag
+          sortedTags.forEach((tag) => {
+            const option = document.createElement("option");
+            option.value = tag;
+            option.textContent = tag;
+            tagFilter.appendChild(option);
+          });
+        } catch (error) {
+          console.error("Error populating tag dropdown:", error);
+        }
+      }
+
+      // Handle filtering by tag
+      async function handleTagFilter() {
+        const selectedTag = tagFilter.value;
+
+        if (!selectedTag) {
+          // If no tag is selected, show all annotations
+          await loadAllAnnotations();
+          return;
+        }
+
+        try {
+          await annotationViewer.initialize();
+          const taggedAnnotations =
+            await annotationViewer.searchAnnotationsByTag(selectedTag);
+          renderAnnotations(taggedAnnotations);
+
+          // Update filter button states
+          filterButtons.forEach((btn) => btn.classList.remove("active"));
+        } catch (error) {
+          console.error("Error filtering by tag:", error);
+          showError(
+            "An error occurred while filtering by tag. Please try again."
+          );
+        }
+      }
+
+      // Load and display all annotations
+      async function loadAllAnnotations() {
+        await annotationViewer.initialize();
+        const annotations = await annotationViewer.getAllAnnotations();
+
+        // Sort by date (newest first)
+        annotations.sort((a, b) => {
+          const dateA = new Date(a.dateCreated);
+          const dateB = new Date(b.dateCreated);
+          return dateB - dateA;
+        });
+
+        renderAnnotations(annotations);
+      }
+
+      // Handle search
+      async function handleSearch() {
+        const query = searchInput.value.trim();
+
+        if (!query) {
+          // If search is empty, show all annotations
+          await loadAllAnnotations();
+          return;
+        }
+
+        try {
+          await annotationViewer.initialize();
+          const results = await annotationViewer.searchAnnotations(query);
+          renderAnnotations(results);
+        } catch (error) {
+          console.error("Search error:", error);
+          showError("An error occurred during search. Please try again.");
+        }
+      }
+
+      // Handle filter selection
+      async function handleFilter(filter) {
+        await annotationViewer.initialize();
+
+        if (filter === "all") {
+          await loadAllAnnotations();
+          return;
+        }
+
+        if (filter === "recent") {
+          const annotations = await annotationViewer.getAllAnnotations();
+
+          // Sort by date (newest first)
+          annotations.sort((a, b) => {
+            const dateA = new Date(a.dateCreated);
+            const dateB = new Date(b.dateCreated);
+            return dateB - dateA;
+          });
+
+          // Get annotations from the last 7 days
+          const oneWeekAgo = new Date();
+          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+
+          const recentAnnotations = annotations.filter((annotation) => {
+            const annotationDate = new Date(annotation.dateCreated);
+            return annotationDate >= oneWeekAgo;
+          });
+
+          renderAnnotations(recentAnnotations);
+        }
+      }
+
+      // Handle export
+      async function handleExport() {
+        try {
+          await annotationViewer.initialize();
+          const annotations = await annotationViewer.getAllAnnotations();
+
+          // Create a JSON blob and trigger download
+          const data = JSON.stringify(annotations, null, 2);
+          const blob = new Blob([data], {type: "application/json"});
+          const url = URL.createObjectURL(blob);
+
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `annotations-export-${new Date()
+            .toISOString()
+            .slice(0, 10)}.json`;
+          document.body.appendChild(a);
+          a.click();
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        } catch (error) {
+          console.error("Export error:", error);
+          showError("Failed to export annotations. Please try again.");
+        }
+      }
+
+      // Render annotations to the container
+      function renderAnnotations(annotations) {
+        annotationViewer.renderAnnotationsToElement(
+          annotations,
+          annotationContainer
+        );
+
+        // Add click event listeners to annotation items (if needed)
+        const annotationItems = document.querySelectorAll(".annotation-item");
+        annotationItems.forEach((item) => {
+          item.addEventListener("click", (event) => {
+            // Only handle clicks on the item itself, not on links within it
+            if (event.target.closest("a")) {
+              return;
+            }
+
+            // Could expand the annotation or show details
+            // item.classList.toggle("expanded");
+          });
+        });
+      }
+
+      // Show error message
+      function showError(message) {
+        annotationContainer.innerHTML = `
+          <div class="empty-state error">
+            <p>${message}</p>
+            <button id="retry-btn">Retry</button>
+          </div>
+        `;
+
+        document
+          .getElementById("retry-btn")
+          .addEventListener("click", loadAllAnnotations);
+      }
+    </script>
+  </body>
+</html>

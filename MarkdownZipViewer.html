@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown ZIP Viewer</title>
+    <!-- Required external libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <!-- Annotation styles -->
+    <link rel="stylesheet" href="annotation-styles.css" />
+    <link rel="stylesheet" href="styles/reset.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+        line-height: 1.6;
+        color: #333;
+        padding: 20px;
+      }
+
+      .container {
+        display: flex;
+        height: calc(100vh - 40px);
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        overflow: hidden;
+        position: relative;
+      }
+
+      .sidebar {
+        width: 300px;
+        border-right: 1px solid #ddd;
+        display: flex;
+        flex-direction: column;
+        background-color: #f5f5f5;
+        flex-shrink: 0;
+        transition: transform 0.3s ease;
+        z-index: 1000;
+      }
+
+      .main-content {
+        flex: 1;
+        overflow: auto;
+        padding: 20px;
+        transition: margin-left 0.3s ease;
+        transition: opacity 0.15s ease-out;
+      }
+
+      .file-controls {
+        padding: 16px;
+        border-bottom: 1px solid #ddd;
+        background-color: #eee;
+      }
+
+      .file-list {
+        flex: 1;
+        overflow: auto;
+        padding: 10px;
+      }
+
+      .file-item {
+        padding: 8px 12px;
+        cursor: pointer;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        transition: background-color 0.2s;
+      }
+
+      .file-item:hover {
+        background-color: #e0e0e0;
+      }
+
+      .file-item.active {
+        background-color: #d0d0d0;
+        font-weight: bold;
+      }
+
+      .file-item.read {
+        color: #666;
+      }
+
+      .file-item.read::before {
+        content: "✓ ";
+        color: #0366d6;
+      }
+
+      .file-item.unread::before {
+        content: "○ ";
+        color: #666;
+      }
+
+      .md-file {
+        color: #0366d6;
+      }
+
+      .status {
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+
+      .status.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .status.info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
+      button,
+      .file-input-button {
+        background-color: #0366d6;
+        color: white;
+        border: none;
+        padding: 8px 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 14px;
+      }
+
+      button:hover,
+      .file-input-button:hover {
+        background-color: #0358c1;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .zip-info {
+        margin-bottom: 10px;
+        font-size: 14px;
+        color: #666;
+      }
+
+      .empty-state {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #666;
+        text-align: center;
+        padding: 20px;
+      }
+
+      .empty-state p {
+        margin: 10px 0;
+      }
+
+      /* Annotation Specific Styles */
+      .annotation-highlight {
+        background-color: rgba(255, 255, 0, 0.3);
+        cursor: pointer;
+      }
+
+      .annotation-highlight:hover {
+        background-color: rgba(255, 255, 0, 0.5);
+      }
+
+      .annotation-item {
+        background-color: #f9f9f9;
+        transition: background-color 0.2s;
+      }
+
+      .annotation-item:hover {
+        background-color: #f0f0f0;
+      }
+
+      /* Navigation links */
+      .nav-links {
+        padding: 16px;
+        border-bottom: 1px solid #ddd;
+        background-color: #eee;
+      }
+
+      .nav-link {
+        display: block;
+        padding: 8px 12px;
+        margin-bottom: 4px;
+        color: #0366d6;
+        text-decoration: none;
+        border-radius: 4px;
+        transition: background-color 0.2s;
+      }
+
+      .nav-link:hover {
+        background-color: #e0e0e0;
+        text-decoration: none;
+      }
+
+      .nav-link i {
+        margin-right: 8px;
+      }
+
+      /* --- Responsive Sidebar Styles --- */
+      .menu-toggle {
+        display: none;
+        position: fixed;
+        top: 25px;
+        left: 25px;
+        z-index: 1100;
+        background: #333;
+        color: white;
+        border: none;
+        padding: 0.5rem 0.8rem;
+        cursor: pointer;
+        border-radius: 4px;
+        font-size: 1.2rem;
+      }
+
+      .overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+      }
+
+      @media (max-width: 768px) {
+        body {
+          padding: 10px;
+        }
+        .container {
+          height: calc(100vh - 20px);
+        }
+
+        .sidebar {
+          position: fixed;
+          left: 0;
+          top: 0;
+          height: 100%;
+          transform: translateX(-100%);
+          transition: transform 0.3s ease;
+          z-index: 1000;
+        }
+
+        .sidebar.open {
+          transform: translateX(0);
+        }
+
+        .overlay.active {
+          display: block;
+        }
+
+        .menu-toggle {
+          display: block;
+          top: 15px;
+          left: 15px;
+          z-index: 1100;
+        }
+
+        .main-content {
+        }
+      }
+      /* --- End Responsive Sidebar Styles --- */
+    </style>
+  </head>
+  <body>
+    <!-- Add Menu Toggle Button -->
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+
+    <div class="container">
+      <div class="sidebar" id="sidebar">
+        <div class="file-controls">
+          <h3>ZIP Files</h3>
+          <div style="margin: 16px 0">
+            <label class="file-input-button">
+              Import ZIP
+              <input type="file" id="zip-file-input" accept=".zip" />
+            </label>
+          </div>
+          <div style="margin: 16px 0">
+            <label for="sort-order">Sort files by:</label>
+            <select
+              id="sort-order"
+              style="padding: 5px; width: 100%; margin-top: 5px"
+            >
+              <option value="alphabet">Alphabetical</option>
+              <option value="unread_first">Unread First</option>
+              <option value="read_first">Read First</option>
+              <option value="read_date">Recently Read</option>
+            </select>
+          </div>
+          <div id="status-message"></div>
+        </div>
+        <div class="nav-links">
+          <a href="AnnotationPage.html" class="nav-link">
+            <i>📝</i> View All Annotations
+          </a>
+        </div>
+        <div class="file-list" id="file-list">
+          <div class="empty-state">
+            <p>No ZIP files imported</p>
+            <p>Use the Import ZIP button above to get started</p>
+          </div>
+        </div>
+      </div>
+      <div class="main-content" id="markdown-content">
+        <div class="empty-state">
+          <p>No markdown file selected</p>
+          <p>Import a ZIP file and select a markdown file to view</p>
+        </div>
+      </div>
+      <!-- Annotation panel will be inserted here by the AnnotationSystem -->
+    </div>
+
+    <!-- Add Overlay Element -->
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <script type="module">
+      import {ZipFileManager} from "./ZipFileManager.js";
+      import {renderMarkdownToElement} from "./MarkdownRendering.js";
+      import {AnnotationSystem} from "./MarkdownAnnotation.js";
+      import {ArticleNavigationHelper} from "./ArticleNavigation.js";
+      import {setupSwipeNavigation} from "./SwipeNavigation.js";
+
+      // --- Toggle Menu Function ---
+      window.toggleMenu = function () {
+        document.getElementById("sidebar").classList.toggle("open");
+        document.getElementById("overlay").classList.toggle("active");
+      };
+      // --- End Toggle Menu Function ---
+
+      // Initialize the ZipFileManager
+      const zipManager = new ZipFileManager({
+        statusCallback: (type, message) => {
+          const statusElement = document.getElementById("status-message");
+          statusElement.innerHTML = `<div class="status ${type}">${message}</div>`;
+
+          // Clear status after a few seconds
+          setTimeout(() => {
+            statusElement.innerHTML = "";
+          }, 5000);
+        },
+      });
+
+      // Initialize variables
+      let currentZipId = null;
+      let currentZipFiles = [];
+      let selectedFile = null;
+      let articleNavigator = null;
+
+      // DOM elements
+      const zipFileInput = document.getElementById("zip-file-input");
+      const fileListElement = document.getElementById("file-list");
+      const markdownContentElement =
+        document.getElementById("markdown-content");
+      const sortOrderSelect = document.getElementById("sort-order");
+
+      // Event handlers
+      zipFileInput.addEventListener("change", handleZipFileUpload);
+
+      // Add event listener for sort order changes
+      sortOrderSelect.addEventListener("change", handleSortOrderChange);
+
+      // Handle sort order changes
+      function handleSortOrderChange() {
+        // Save the sort order preference
+        localStorage.setItem("md_file_sort_order", sortOrderSelect.value);
+
+        // If there's a current ZIP file loaded, re-display with new sort order
+        if (currentZipId !== null) {
+          zipManager
+            .getZipFileById(currentZipId)
+            .then((zipData) => {
+              displayZipContents(zipData);
+            })
+            .catch((error) => {
+              console.error("Error refreshing ZIP contents:", error);
+            });
+        }
+      }
+
+      // Handle ZIP file upload
+      async function handleZipFileUpload(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        try {
+          // Save the ZIP file using ZipFileManager
+          currentZipId = await zipManager.saveZipFile(file);
+
+          // Get the saved ZIP file data
+          const zipData = await zipManager.getZipFileById(currentZipId);
+
+          // Display the ZIP file contents
+          displayZipContents(zipData);
+
+          // Reset the file input
+          zipFileInput.value = "";
+        } catch (error) {
+          console.error("Error uploading ZIP file:", error);
+          showStatus("error", `Error: ${error.message}`);
+        }
+      }
+
+      // Display ZIP contents in the file list
+      function displayZipContents(zipData) {
+        // Store current ZIP files for reference
+        currentZipFiles = zipData.files;
+
+        // Clear previous file list
+        fileListElement.innerHTML = "";
+
+        // Add ZIP info
+        const zipInfoElement = document.createElement("div");
+        zipInfoElement.className = "zip-info";
+        zipInfoElement.textContent = `${zipData.name} (${zipData.fileCount} files)`;
+        fileListElement.appendChild(zipInfoElement);
+
+        // Filter for markdown files and sort them
+        const mdFiles = zipData.files.filter((file) => {
+          const lowerPath = file.path.toLowerCase();
+          return lowerPath.endsWith(".md") || lowerPath.endsWith(".markdown");
+        });
+
+        // Get current sort order from dropdown or localStorage
+        const sortOrderSelect = document.getElementById("sort-order");
+        const savedSortOrder = localStorage.getItem("md_file_sort_order");
+
+        // Set dropdown to saved sort order if available
+        if (savedSortOrder) {
+          sortOrderSelect.value = savedSortOrder;
+        }
+
+        // Get current selected sort order
+        const sortOrder = sortOrderSelect.value;
+
+        // Apply sorting using ZipFileManager
+        const sortedFiles = zipManager.sortFilesByReadStatus(
+          mdFiles,
+          sortOrder
+        );
+
+        // Initialize the article navigator with sorted files
+        articleNavigator = new ArticleNavigationHelper(sortedFiles);
+
+        // Create file items for each markdown file
+        if (sortedFiles.length > 0) {
+          sortedFiles.forEach((file) => {
+            const fileItem = document.createElement("div");
+            fileItem.className = "file-item md-file";
+
+            // Add read/unread class based on file status
+            if (file.isRead) {
+              fileItem.classList.add("read");
+            } else {
+              fileItem.classList.add("unread");
+            }
+
+            // Use the displayName if available, otherwise fall back to path
+            fileItem.textContent = file.displayName || file.path;
+
+            // Store the original path for file identification
+            fileItem.dataset.path = file.path;
+
+            // Add double-click handler to toggle read status
+            fileItem.addEventListener("dblclick", (event) => {
+              // Prevent single-click handler from firing
+              event.stopPropagation();
+
+              // Toggle read status
+              zipManager
+                .toggleReadState(currentZipId, file.path)
+                .then((isRead) => {
+                  // Update UI to reflect new status
+                  updateFileItemReadStatus(file.path, isRead);
+                })
+                .catch((error) => {
+                  console.error("Error toggling read status:", error);
+                });
+            });
+
+            fileItem.addEventListener("click", () => {
+              // Remove active class from all items
+              document.querySelectorAll(".file-item").forEach((item) => {
+                item.classList.remove("active");
+              });
+
+              // Add active class to clicked item
+              fileItem.classList.add("active");
+
+              // Display the markdown file
+              displayMarkdownFile(file);
+            });
+
+            fileListElement.appendChild(fileItem);
+          });
+        } else {
+          const noMdElement = document.createElement("div");
+          noMdElement.className = "empty-state";
+          noMdElement.innerHTML = "<p>No markdown files found in this ZIP</p>";
+          fileListElement.appendChild(noMdElement);
+        }
+      }
+
+      // --- Helper for Sidebar Update on Swipe ---
+      function updateSidebarSelection(article) {
+        const fileItem = document.querySelector(
+          `.file-item[data-path="${article.path}"]`
+        );
+        if (fileItem) {
+          document.querySelectorAll(".file-item").forEach((item) => {
+            item.classList.remove("active");
+          });
+          fileItem.classList.add("active");
+          fileItem.scrollIntoView({block: "nearest"});
+        }
+      }
+      // --- End Helper ---
+
+      // Display a markdown file in the main content area
+      function displayMarkdownFile(file) {
+        // Add a fade-out effect before changing content
+        markdownContentElement.style.opacity = "0";
+
+        setTimeout(() => {
+          selectedFile = file;
+
+          // Clear any existing annotations
+          if (AnnotationSystem.reset) {
+            AnnotationSystem.reset();
+          }
+
+          // Render markdown content using the MarkdownRendering module
+          renderMarkdownToElement(file.content, markdownContentElement);
+
+          // --- Add Article Note Button ---
+          const articleNoteContainer = document.createElement("div");
+          articleNoteContainer.style.padding = "10px 0"; // Add some spacing
+          articleNoteContainer.style.borderBottom = "1px solid #eee"; // Separator
+          articleNoteContainer.style.marginBottom = "15px";
+
+          const articleNoteButton = document.createElement("button");
+          articleNoteButton.textContent = "Add Note to Article";
+          articleNoteButton.style.fontSize = "0.9em"; // Slightly smaller button
+          articleNoteButton.onclick = () => {
+            if (AnnotationSystem.createArticleAnnotation) {
+              // Ensure the method exists before calling
+              AnnotationSystem.createArticleAnnotation();
+            } else {
+              console.warn(
+                "AnnotationSystem.createArticleAnnotation is not yet implemented."
+              );
+              alert(
+                "Functionality to add article notes is not yet fully implemented."
+              );
+            }
+          };
+
+          articleNoteContainer.appendChild(articleNoteButton);
+          // Prepend the button container to the main content area
+          markdownContentElement.prepend(articleNoteContainer);
+          // --- End Add Article Note Button ---
+
+          // Set current article in the navigator
+          if (articleNavigator) {
+            articleNavigator.setCurrentArticle(file.path);
+          }
+
+          // Remove any existing navigation buttons
+          const existingNav = markdownContentElement.querySelector(
+            ".article-navigation"
+          );
+          if (existingNav) {
+            existingNav.remove();
+          }
+
+          // Add navigation buttons if we have an article navigator
+          if (articleNavigator) {
+            articleNavigator.createNavigationButtons(
+              markdownContentElement,
+              (article) => {
+                // Update sidebar before displaying
+                updateSidebarSelection(article);
+                // Display the article (will include fade in)
+                displayMarkdownFile(article);
+              }
+            );
+          }
+
+          // Initialize annotation system on the rendered content
+          setTimeout(() => {
+            // Pass the current ZIP ID as the file ID and the path as the file path
+            AnnotationSystem.initialize(
+              markdownContentElement,
+              currentZipId,
+              file.path
+            );
+            // Fade back in AFTER rendering and annotation init
+            markdownContentElement.style.opacity = "1";
+          }, 100); // Small delay to ensure rendering is complete
+
+          // Mark the file as read
+          zipManager
+            .markFileAsRead(currentZipId, file.path)
+            .then(() => {
+              // Update the file list item to show read status
+              updateFileItemReadStatus(file.path, true);
+            })
+            .catch((error) => {
+              console.error("Error marking file as read:", error);
+            });
+        }, 150); // Match fade-out time before starting content update
+      }
+
+      // Display status message
+      function showStatus(type, message) {
+        const statusElement = document.getElementById("status-message");
+        statusElement.innerHTML = `<div class="status ${type}">${message}</div>`;
+
+        // Clear status after a few seconds
+        setTimeout(() => {
+          statusElement.innerHTML = "";
+        }, 5000);
+      }
+
+      // Function to handle URL parameters and open the specified file
+      async function openFileFromUrlParams() {
+        const params = new URLSearchParams(window.location.search);
+        const fileId = params.get("file");
+        const filePath = params.get("path");
+
+        if (fileId && filePath) {
+          try {
+            console.log(`Opening file: ${filePath} from ZIP ID: ${fileId}`);
+
+            // Set current ZIP ID
+            currentZipId = parseInt(fileId, 10);
+            if (isNaN(currentZipId)) {
+              currentZipId = fileId; // Handle string IDs if needed
+            }
+
+            // Get the ZIP file data
+            const zipData = await zipManager.getZipFileById(currentZipId);
+
+            // Display the ZIP contents
+            displayZipContents(zipData);
+
+            // Find the specified file
+            const targetFile = zipData.files.find(
+              (file) => file.path === filePath
+            );
+            if (targetFile) {
+              // Highlight the file in the sidebar
+              const fileItem = document.querySelector(
+                `.file-item[data-path="${filePath}"]`
+              );
+              if (fileItem) {
+                fileItem.classList.add("active");
+              }
+              // Display the file
+              displayMarkdownFile(targetFile);
+              showStatus("success", `Opened file: ${filePath}`);
+            } else {
+              showStatus("error", `File not found: ${filePath}`);
+            }
+          } catch (error) {
+            console.error("Error opening file from URL parameters:", error);
+            showStatus("error", `Error opening file: ${error.message}`);
+          }
+        }
+      }
+
+      // Initialize
+      (async function init() {
+        try {
+          // Initialize IndexedDB
+          await zipManager.initIndexedDB();
+
+          // Load saved sort order preference
+          const savedSortOrder = localStorage.getItem("md_file_sort_order");
+          if (savedSortOrder) {
+            sortOrderSelect.value = savedSortOrder;
+          }
+
+          // Get all existing ZIP files
+          const zipFiles = await zipManager.getAllZipFiles();
+
+          // Check if there are URL parameters to open a specific file
+          const hasUrlParams =
+            window.location.search.includes("file=") &&
+            window.location.search.includes("path=");
+
+          if (hasUrlParams) {
+            // Try to open file from URL parameters
+            await openFileFromUrlParams();
+          } else if (zipFiles.length > 0) {
+            // If no URL parameters but there are ZIP files, display the most recent one
+            const mostRecent = zipFiles[zipFiles.length - 1];
+            currentZipId = mostRecent.id;
+            displayZipContents(mostRecent);
+          }
+
+          // --- Conditionally open sidebar on mobile for initial load without specific file ---
+          if (!hasUrlParams && window.innerWidth <= 768) {
+            // Check if sidebar is not already open
+            const sidebar = document.getElementById("sidebar");
+            if (sidebar && !sidebar.classList.contains("open")) {
+              console.log("Opening sidebar on mobile initial load.");
+              toggleMenu(); // Assumes toggleMenu is globally accessible
+            }
+          }
+          // --- End conditional sidebar opening ---
+
+          // --- Setup Swipe Navigation (conditionally) ---
+          setupSwipeNavigation(
+            markdownContentElement,
+            articleNavigator,
+            displayMarkdownFile,
+            updateSidebarSelection
+          );
+          // --- End Setup Swipe Navigation ---
+        } catch (error) {
+          console.error("Error during initialization:", error);
+          showStatus("error", `Initialization failed: ${error.message}`);
+        }
+      })(); // Immediately invoke the async function
+
+      // Update a file item's read status in the UI
+      function updateFileItemReadStatus(filePath, isRead) {
+        const fileItem = document.querySelector(
+          `.file-item[data-path="${filePath}"]`
+        );
+        if (fileItem) {
+          if (isRead) {
+            fileItem.classList.add("read");
+            fileItem.classList.remove("unread");
+          } else {
+            fileItem.classList.add("unread");
+            fileItem.classList.remove("read");
+          }
+        }
+      }
+    </script>
+  </body>
+</html>

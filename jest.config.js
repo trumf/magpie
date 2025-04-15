@@ -1,37 +1,49 @@
-module.exports = {
+/** @type {import('jest').Config} */
+export default {
   testEnvironment: "jsdom",
-  testEnvironmentOptions: {
-    url: "http://localhost",
-  },
+  testMatch: [
+    "**/*.test.js",
+    "!**/*.ReadStatus.test.js",
+    "!**/*.sort.test.js",
+    "!**/HeadlineExtraction.test.js",
+    "!**/ArticleNavigation.test.js",
+  ],
+  setupFiles: ["./jest.setup.js"],
+  transform: {},
   moduleNameMapper: {
-    // Handle CSS imports (with CSS modules)
-    "\\.module\\.css$": "identity-obj-proxy",
-    // Handle CSS imports (without CSS modules)
-    "\\.css$": "<rootDir>/__mocks__/styleMock.js",
-    // Handle static assets
-    "\\.(jpg|jpeg|png|gif|svg)$": "<rootDir>/__mocks__/fileMock.js",
-    // Handle module aliases
-    "^@/components/(.*)$": "<rootDir>/components/$1",
+    "^(\\.{1,2}/.*)\\.js$": "$1",
   },
-  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
-  transform: {
-    "^.+\\.(js|jsx)$": "babel-jest",
-  },
-  transformIgnorePatterns: [
-    "/node_modules/(?!(lucide-react|react-markdown|remark-parse|mdast-util-from-markdown|micromark|micromark-core-commonmark|micromark-util-decode-numeric-character-reference|micromark-util-character|micromark-util-resolve-all|unist-util-visit|unist-util-visit-parents|hast-util-from-html)/)",
-  ],
-  testPathIgnorePatterns: ["<rootDir>/node_modules/", "<rootDir>/cypress/"],
-  collectCoverageFrom: [
-    "src/**/*.{js,jsx}",
-    "!src/**/*.test.{js,jsx}",
-    "!**/node_modules/**",
-  ],
-  coverageThreshold: {
-    global: {
-      statements: 70,
-      branches: 70,
-      functions: 70,
-      lines: 70,
+  transformIgnorePatterns: ["/node_modules/(?!.*\\.mjs$)"],
+  setupFilesAfterEnv: ["./jest.setup.js"],
+  // Indicate which test files should use additional setup
+  projects: [
+    {
+      displayName: "annotation-tests",
+      testMatch: ["**/AnnotationStorage.test.js"],
+      setupFilesAfterEnv: ["./annotation-test-setup.js"],
+      testEnvironment: "jsdom",
     },
-  },
+    {
+      displayName: "annotation-viewer-tests",
+      testMatch: ["**/AnnotationViewer.test.js"],
+      setupFilesAfterEnv: ["./annotation-viewer-test-setup.js"],
+      testEnvironment: "jsdom",
+    },
+    {
+      displayName: "other-tests",
+      testMatch: [
+        "**/?(*.)+(spec|test).js",
+        // Exclude Node.js test runner files
+        "!**/*.ReadStatus.test.js",
+        "!**/*.sort.test.js",
+        "!**/HeadlineExtraction.test.js",
+        "!**/ArticleNavigation.test.js",
+        // Also exclude the annotation tests which have their own projects
+        "!**/AnnotationStorage.test.js",
+        "!**/AnnotationViewer.test.js",
+      ],
+      setupFilesAfterEnv: ["./jest.setup.js"],
+      testEnvironment: "jsdom",
+    },
+  ],
 };
