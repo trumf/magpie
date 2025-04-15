@@ -457,6 +457,15 @@
         // Initialize the article navigator with sorted files
         articleNavigator = new ArticleNavigationHelper(sortedFiles);
 
+        // --- Re-Setup Swipe Navigation with the new navigator ---
+        setupSwipeNavigation(
+          markdownContentElement,
+          articleNavigator,
+          displayMarkdownFile,
+          updateSidebarSelection
+        );
+        // --- End Re-Setup ---
+
         // Create file items for each markdown file
         if (sortedFiles.length > 0) {
           sortedFiles.forEach((file) => {
