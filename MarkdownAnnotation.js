@@ -236,35 +236,62 @@ export const AnnotationSystem = (function () {
     setupSelectionListener: function () {
       if (!currentDocument) return;
 
-      currentDocument.addEventListener("pointerup", (e) => {
-        const selection = window.getSelection();
+      let selectionTimeout;
 
-        // Only proceed if there's actual text selected
-        if (selection.toString().trim().length > 0) {
-          // Check if selection is inside our document container
+      // Use selectionchange for better cross-device compatibility
+      document.addEventListener("selectionchange", () => {
+        clearTimeout(selectionTimeout);
+
+        selectionTimeout = setTimeout(() => {
+          const selection = window.getSelection();
+
+          // Check if selection is valid and within the document
           if (
-            currentDocument.contains(
-              selection.getRangeAt(0).commonAncestorContainer
-            )
+            selection &&
+            !selection.isCollapsed && // Ensure something is actually selected
+            selection.toString().trim().length > 0 &&
+            currentDocument.contains(selection.anchorNode) // Check if selection starts within the container
           ) {
-            // Show annotation UI
-            this.showAnnotationPopup(selection, e);
+            // Get position from the selection range
+            try {
+              const range = selection.getRangeAt(0);
+              const rect = range.getBoundingClientRect();
+              const position = {
+                x: rect.right + window.scrollX, // Position popup to the right of the selection
+                y: rect.bottom + window.scrollY, // Position popup below the selection
+              };
+              this.showAnnotationPopup(selection, position);
+            } catch (e) {
+              console.error("Error getting selection range bounds:", e);
+            }
+          } else {
+            // Optional: If selection is cleared or invalid, remove any existing popup
+            const existingPopup = document.querySelector(".annotation-popup");
+            if (existingPopup) {
+              document.body.removeChild(existingPopup);
+            }
           }
-        }
+        }, 150); // Debounce: Wait 150ms after last change
       });
     },
 
     /**
      * Show a popup menu for creating annotations
      * @param {Selection} selection - The current text selection
-     * @param {MouseEvent} mouseEvent - The triggering mouse event
+     * @param {{x: number, y: number}} position - The position to show the popup
      */
-    showAnnotationPopup: function (selection, mouseEvent) {
-      // Create a simple popup near the mouse position
+    showAnnotationPopup: function (selection, position) {
+      // Remove any existing popup first
+      const existingPopup = document.querySelector(".annotation-popup");
+      if (existingPopup) {
+        document.body.removeChild(existingPopup);
+      }
+
+      // Create a simple popup near the selection end position
       const popup = createAnnotationElement("div", "annotation-popup", {
         position: "absolute",
-        left: `${mouseEvent.pageX + 10}px`,
-        top: `${mouseEvent.pageY + 10}px`,
+        left: `${position.x + 10}px`, // Use calculated position
+        top: `${position.y + 5}px`, // Use calculated position
         zIndex: "1000",
         background: "white",
         border: "1px solid #ccc",
