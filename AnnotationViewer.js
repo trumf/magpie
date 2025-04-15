@@ -218,11 +218,11 @@ export class AnnotationViewer {
         // Navigate to the viewer page with the file parameters
         if (href) {
           // If we're already on the viewer page, update the URL
-          if (window.location.pathname.includes("MarkdownZipViewer.html")) {
+          if (window.location.pathname.includes("index.html")) {
             window.location.search = href.substring(href.indexOf("?"));
           } else {
             // Navigate to the viewer page with the parameters
-            window.location.href = `MarkdownZipViewer.html${href}`;
+            window.location.href = `index.html${href}`;
           }
 
           console.log("Navigating to file:", href);
