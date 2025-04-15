@@ -1,18 +1,17 @@
 // services/AssetService.js
+import {getDatabaseService} from "./DatabaseService";
 
 class AssetService {
   constructor() {
-    this.dbName = "markdownDB";
-    this.version = 3; // Increased version for new assets store
-    this.db = null;
     this.assets = new Map(); // In-memory cache for current session
     this.initialized = false;
     this.initPromise = null;
+    this.db = null;
   }
 
   async initialize() {
     // If already initialized, return immediately
-    if (this.initialized) {
+    if (this.initialized && this.db) {
       return Promise.resolve();
     }
 
@@ -24,75 +23,25 @@ class AssetService {
     console.log("AssetService: Starting database initialization");
 
     // Start initialization
-    this.initPromise = new Promise((resolve, reject) => {
-      try {
-        const request = indexedDB.open(this.dbName, this.version);
+    this.initPromise = getDatabaseService()
+      .then((dbService) => {
+        if (!dbService || !dbService.db) {
+          console.error("AssetService: Failed to get database service");
+          throw new Error("Database service not available");
+        }
 
-        request.onerror = (event) => {
-          console.error("AssetService: Database error:", event.target.error);
-          this.initPromise = null; // Reset so we can try again
-          reject(new Error("Failed to open database"));
-        };
+        this.db = dbService.db;
+        this.initialized = true;
+        console.log("AssetService: Database initialized successfully");
+        return;
+      })
+      .catch((error) => {
+        this.initPromise = null; // Reset so we can try again
+        console.error("AssetService: Initialization failed:", error);
+        throw error;
+      });
 
-        request.onblocked = (event) => {
-          console.warn("AssetService: Database blocked:", event);
-          // Try to close any existing connection
-          if (this.db) {
-            this.db.close();
-          }
-        };
-
-        request.onsuccess = (event) => {
-          console.log("AssetService: Database opened successfully");
-          this.db = event.target.result;
-          this.initialized = true;
-          resolve();
-        };
-
-        request.onupgradeneeded = (event) => {
-          console.log("AssetService: Database upgrade needed");
-          const db = event.target.result;
-
-          // Create assets store if it doesn't exist
-          if (!db.objectStoreNames.contains("assets")) {
-            const assetsStore = db.createObjectStore("assets", {
-              keyPath: "id",
-            });
-
-            // Create indexes for querying
-            assetsStore.createIndex("originalPath", "originalPath", {
-              unique: false,
-            });
-            assetsStore.createIndex("name", "name", {
-              unique: false,
-            });
-          }
-        };
-      } catch (error) {
-        console.error("AssetService: Error during initialization:", error);
-        this.initPromise = null;
-        reject(error);
-      }
-    });
-
-    // Add timeout and fallback
-    const timeoutPromise = new Promise((resolve) => {
-      setTimeout(() => {
-        console.warn("AssetService: Database initialization timed out");
-        this.initialized = true; // Force initialized state
-        resolve();
-      }, 5000); // 5 second timeout
-    });
-
-    // Race the regular initialization with the timeout
-    return Promise.race([this.initPromise, timeoutPromise]).catch((error) => {
-      console.error(
-        "AssetService: Initialization failed, using fallback:",
-        error
-      );
-      this.initialized = true; // Force initialized state even on error
-      return Promise.resolve(); // Continue anyway
-    });
+    return this.initPromise;
   }
 
   /**
@@ -104,6 +53,9 @@ class AssetService {
       await this.initialize();
 
       const {blob, name, originalPath} = asset;
+
+      // Create a unique ID for the asset
+      // (filename + hash of path to avoid collisions)
       const pathHash = this.hashString(originalPath || name);
       const id = `asset_${pathHash}_${name}`;
 
@@ -118,50 +70,17 @@ class AssetService {
       // Only try to store in IndexedDB if we have a database connection
       if (this.db) {
         try {
-          // Convert blob to ArrayBuffer for storage first
+          // Convert blob to ArrayBuffer for storage
           const arrayBuffer = await blob.arrayBuffer();
 
-          // Create the asset object
-          const assetData = {
+          // Use a single transaction with proper error handling
+          await this._storeAssetInDB(
             id,
             name,
             originalPath,
             arrayBuffer,
-            mimeType: blob.type || this.getMimeTypeFromFilename(name),
-            timestamp: new Date().toISOString(),
-          };
-
-          // Then do the database operation with transaction handling
-          await new Promise((resolve, reject) => {
-            // Create transaction AFTER preparing all data
-            const transaction = this.db.transaction(["assets"], "readwrite");
-            const store = transaction.objectStore("assets");
-
-            // Handle transaction lifecycle events
-            transaction.oncomplete = () => {
-              console.log(`Asset stored successfully: ${name}`);
-              resolve();
-            };
-
-            transaction.onerror = (event) => {
-              console.error("Transaction error:", event.target.error);
-              reject(event.target.error);
-            };
-
-            transaction.onabort = (event) => {
-              console.error("Transaction aborted:", event.target.error);
-              reject(event.target.error);
-            };
-
-            // Add the actual request within the transaction
-            const request = store.put(assetData);
-
-            request.onerror = (event) => {
-              // This error handler is for the specific request
-              console.error("Request error:", event.target.error);
-              // No need to reject here as transaction.onerror will be triggered too
-            };
-          });
+            blob.type
+          );
         } catch (dbError) {
           console.error("Error storing asset in database:", dbError);
           // Continue anyway - we have it in memory
@@ -180,6 +99,92 @@ class AssetService {
   }
 
   /**
+   * Helper function to store asset in database with proper transaction handling
+   */
+  async _storeAssetInDB(id, name, originalPath, arrayBuffer, blobType) {
+    return new Promise((resolve, reject) => {
+      if (!this.db || !this.initialized) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+
+      // Create a new transaction specific to this operation
+      const transaction = this.db.transaction(["assets"], "readwrite");
+      const store = transaction.objectStore("assets");
+
+      transaction.oncomplete = () => {
+        console.log("Asset stored successfully:", name);
+        resolve();
+      };
+
+      transaction.onerror = (event) => {
+        console.error("Transaction error:", event.target.error);
+        reject(
+          new Error(
+            `Failed to store asset in database: ${event.target.error.message}`
+          )
+        );
+      };
+
+      // Create the asset record
+      const assetRecord = {
+        id,
+        name,
+        originalPath,
+        arrayBuffer,
+        mimeType: blobType || this.getMimeTypeFromFilename(name),
+        timestamp: new Date().toISOString(),
+      };
+
+      // Perform the put operation within the transaction
+      const request = store.put(assetRecord);
+
+      request.onerror = (event) => {
+        console.error("Error in store.put:", event.target.error);
+        // Error will be handled by transaction.onerror
+      };
+    });
+  }
+
+  /**
+   * Batch store multiple assets with proper transaction handling
+   * @param {Array} assets Array of asset objects to store
+   * @returns {Promise<Array>} Array of asset IDs
+   */
+  async storeAssets(assets) {
+    if (!assets || !assets.length) {
+      return [];
+    }
+
+    try {
+      await this.initialize();
+
+      // Process in chunks to ensure transactions don't time out
+      const chunkSize = 5;
+      const assetIds = [];
+
+      // Process assets in sequential chunks
+      for (let i = 0; i < assets.length; i += chunkSize) {
+        const chunk = assets.slice(i, i + chunkSize);
+        // Process each asset individually but in sequence
+        for (const asset of chunk) {
+          const id = await this.storeAsset(asset);
+          assetIds.push(id);
+        }
+      }
+
+      return assetIds;
+    } catch (error) {
+      console.error("Error in batch storeAssets:", error);
+      // Return asset IDs for assets we managed to store
+      return assets.map((asset) => {
+        const pathHash = this.hashString(asset.originalPath || asset.name);
+        return `asset_${pathHash}_${asset.name}`;
+      });
+    }
+  }
+
+  /**
    * Retrieves an asset by its ID, either from memory or database
    */
   async getAsset(id) {
@@ -189,20 +194,13 @@ class AssetService {
 
       // Check memory cache first
       if (this.assets.has(id)) {
-        return this.assets.get(id).url;
+        return this.assets.get(id);
       }
 
       // Only try database if we have a connection
       if (this.db) {
         try {
-          const transaction = this.db.transaction(["assets"], "readonly");
-          const store = transaction.objectStore("assets");
-
-          const asset = await new Promise((resolve, reject) => {
-            const request = store.get(id);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(new Error("Failed to get asset"));
-          });
+          const asset = await this._getAssetFromDB(id);
 
           if (!asset) {
             return null;
@@ -213,9 +211,10 @@ class AssetService {
           const url = URL.createObjectURL(blob);
 
           // Store in memory cache
-          this.assets.set(id, {url, blob, mimeType: asset.mimeType});
+          const assetObj = {url, blob, mimeType: asset.mimeType};
+          this.assets.set(id, assetObj);
 
-          return url;
+          return assetObj;
         } catch (dbError) {
           console.error("Error retrieving from database:", dbError);
           return null;
@@ -228,6 +227,37 @@ class AssetService {
       console.error("Fatal error in getAsset:", error);
       return null;
     }
+  }
+
+  /**
+   * Helper function to get asset from database with proper transaction handling
+   */
+  async _getAssetFromDB(id) {
+    return new Promise((resolve, reject) => {
+      if (!this.db || !this.initialized) {
+        reject(new Error("Database not initialized"));
+        return;
+      }
+
+      const transaction = this.db.transaction(["assets"], "readonly");
+      const store = transaction.objectStore("assets");
+
+      transaction.onerror = (event) => {
+        console.error("Transaction error:", event.target.error);
+        reject(new Error(`Failed to get asset: ${event.target.error.message}`));
+      };
+
+      const request = store.get(id);
+
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
+
+      request.onerror = (event) => {
+        console.error("Error in store.get:", event.target.error);
+        reject(new Error(`Failed to get asset: ${event.target.error.message}`));
+      };
+    });
   }
 
   /**
@@ -271,45 +301,44 @@ class AssetService {
       return assetMap[fileName];
     }
 
-    // Look for partial matches in the path
-    for (const [path, id] of Object.entries(assetMap)) {
-      if (src.includes(path) || path.includes(src)) {
-        return id;
-      }
-    }
-
     return null;
   }
 
   /**
-   * Helper to decode URL components
+   * Decode URL-encoded characters
    */
   decodeUrl(url) {
     try {
       return decodeURIComponent(url);
-    } catch {
+    } catch (e) {
       return url;
     }
   }
 
   /**
-   * Generates a simple hash from a string
+   * Generate a simple hash from a string
    */
   hashString(str) {
     let hash = 0;
+    if (!str || str.length === 0) return hash;
+
     for (let i = 0; i < str.length; i++) {
       const char = str.charCodeAt(i);
       hash = (hash << 5) - hash + char;
-      hash = hash & hash;
+      hash = hash & hash; // Convert to 32bit integer
     }
-    return Math.abs(hash).toString(36);
+
+    return Math.abs(hash).toString(16);
   }
 
   /**
-   * Tries to determine MIME type from filename
+   * Get MIME type from filename
    */
   getMimeTypeFromFilename(filename) {
+    if (!filename) return "application/octet-stream";
+
     const ext = filename.split(".").pop().toLowerCase();
+
     const mimeTypes = {
       jpg: "image/jpeg",
       jpeg: "image/jpeg",
@@ -317,48 +346,34 @@ class AssetService {
       gif: "image/gif",
       svg: "image/svg+xml",
       webp: "image/webp",
+      pdf: "application/pdf",
     };
 
     return mimeTypes[ext] || "application/octet-stream";
   }
 
   /**
-   * Clears all assets from memory
+   * Clear the memory cache
    */
   clearMemoryCache() {
-    // Revoke all blob URLs to prevent memory leaks
-    this.assets.forEach((asset) => {
-      if (asset.url.startsWith("blob:")) {
+    // Revoke all object URLs to prevent memory leaks
+    for (const asset of this.assets.values()) {
+      if (asset.url) {
         URL.revokeObjectURL(asset.url);
       }
-    });
+    }
 
     this.assets.clear();
   }
 }
 
 let instance = null;
-let initializationPromise = null;
 
 export const getAssetService = async () => {
   if (!instance) {
-    // Create the instance if it doesn't exist
     instance = new AssetService();
-    try {
-      initializationPromise = instance.initialize();
-      await initializationPromise;
-      console.log("AssetService initialized successfully");
-    } catch (error) {
-      console.error("Error initializing AssetService:", error);
-      // Continue anyway with a partially initialized service
-    }
+    await instance.initialize();
   }
-
-  // Wait for initialization to complete before returning
-  if (initializationPromise) {
-    await initializationPromise;
-  }
-
   return instance;
 };
 

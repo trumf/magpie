@@ -9,7 +9,6 @@ import React, {
 import {getAnnotationService} from "../services/AnnotationService";
 import OfflineService from "../services/OfflineService";
 import {getFileStorageService} from "../services/FileStorageService";
-// Import the asset service
 import {getAssetService} from "../services/AssetService";
 
 const AppContext = createContext(null);
@@ -19,102 +18,62 @@ export const AppProvider = ({children}) => {
   const [currentFile, setCurrentFile] = useState(null);
   const [isImporting, setIsImporting] = useState(true);
   const [directoryHandle, setDirectoryHandle] = useState(null);
-
-  // Change the default value to false so the sidebar is initially collapsed
   const [isSidebarVisible, setIsSidebarVisible] = useState(false);
-
-  const [fileStorageService, setFileStorageService] = useState(null);
   const [isInitialized, setIsInitialized] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
 
-  // Add to state declarations
+  // Service instances
+  const [fileStorageService, setFileStorageService] = useState(null);
+  const [annotationService, setAnnotationService] = useState(null);
   const [assetService, setAssetService] = useState(null);
 
-  //offline PWA support
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [cachedFiles, setCachedFiles] = useState([]);
-
   // Annotation states
-  const [annotationService, setAnnotationService] = useState(null);
   const [annotations, setAnnotations] = useState({});
   const [selectedParagraphs, setSelectedParagraphs] = useState(new Set());
   const [annotationText, setAnnotationText] = useState("");
   const [isAnnotating, setIsAnnotating] = useState(false);
 
-  const loadAnnotations = useCallback(
-    async (articleId) => {
-      if (!annotationService) return;
-      try {
-        const articleAnnotations =
-          await annotationService.getAnnotationsForArticle(articleId);
-        const annotationMap = {};
-        articleAnnotations.forEach((annotation) => {
-          if (!annotationMap[annotation.paragraphIndex]) {
-            annotationMap[annotation.paragraphIndex] = [];
-          }
-          annotationMap[annotation.paragraphIndex].push(annotation);
-        });
-        setAnnotations(annotationMap);
-      } catch (error) {
-        console.error("Failed to load annotations:", error);
-      }
-    },
-    [annotationService]
-  );
-
-  // Add to combined service initialization
-  // Add to combined service initialization
+  // Services initialization - combined into a single effect
   useEffect(() => {
+    console.log("Initializing services...");
     let mounted = true;
 
     const initServices = async () => {
-      console.log("Initializing services...");
       try {
-        // Initialize services
-        const storage = await getFileStorageService();
-        const annotation = await getAnnotationService();
-        const asset = await getAssetService();
+        // Initialize all services in parallel
+        const [storage, annotation, asset] = await Promise.all([
+          getFileStorageService(),
+          getAnnotationService(),
+          getAssetService(),
+        ]);
 
         if (!mounted) return;
 
+        console.log("All services initialized successfully");
+
+        // Set service instances
         setFileStorageService(storage);
         setAnnotationService(annotation);
         setAssetService(asset);
 
         // Load saved files from IndexedDB
         try {
-          console.log("Loading saved files from IndexedDB...");
+          console.log("Loading saved files from database...");
           const savedFiles = await storage.getFiles();
-          if (savedFiles.length > 0 && mounted) {
+
+          if (savedFiles && savedFiles.length > 0 && mounted) {
+            console.log(`Loaded ${savedFiles.length} files from database`);
             setFiles(savedFiles);
             setIsImporting(false);
-            console.log(`Loaded ${savedFiles.length} files from IndexedDB`);
           } else {
-            // Try loading from localStorage if IndexedDB is empty
-            const fileIndexString = localStorage.getItem("magpieFileIndex");
-            if (fileIndexString) {
-              try {
-                const fileIndex = JSON.parse(fileIndexString);
-                if (fileIndex.length > 0) {
-                  console.log(
-                    `Found ${fileIndex.length} file references in localStorage, attempting to restore`
-                  );
-                  // Since we don't store content in localStorage, we should show the import screen
-                  // but pre-populate with the file metadata we have
-                  setFiles(fileIndex);
-                  // Still keep isImporting true so user can re-import the actual content
-                }
-              } catch (parseError) {
-                console.error(
-                  "Error parsing localStorage file index:",
-                  parseError
-                );
-              }
-            }
+            console.log("No files found in database");
+            setIsImporting(true);
           }
         } catch (error) {
           console.error("Error loading saved files:", error);
+          setIsImporting(true);
 
-          // Recovery attempt from localStorage
+          // Try to recover from localStorage as fallback
           try {
             const fileIndexString = localStorage.getItem("magpieFileIndex");
             if (fileIndexString) {
@@ -123,7 +82,6 @@ export const AppProvider = ({children}) => {
                 console.log(
                   `Recovered ${fileIndex.length} file references from localStorage`
                 );
-                // Show these in UI but keep isImporting true
                 setFiles(fileIndex);
               }
             }
@@ -137,6 +95,9 @@ export const AppProvider = ({children}) => {
         }
       } catch (error) {
         console.error("Error initializing services:", error);
+        if (mounted) {
+          setIsInitialized(true); // Still set initialized to prevent infinite loading
+        }
       }
     };
 
@@ -147,93 +108,25 @@ export const AppProvider = ({children}) => {
     };
   }, []);
 
-  useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
+  // Cancel annotation mode
+  const cancelAnnotation = useCallback(() => {
+    setSelectedParagraphs(new Set());
+    setAnnotationText("");
+    setIsAnnotating(false);
   }, []);
 
-  // Load cached files
-  useEffect(() => {
-    const loadCachedFiles = async () => {
-      const cached = await OfflineService.getCachedFiles();
-      setCachedFiles(cached);
-    };
-
-    loadCachedFiles();
-  }, []);
-
-  const handleParagraphClick = useCallback(
-    (index) => {
-      if (!isAnnotating) {
-        setIsAnnotating(true);
-        setSelectedParagraphs(new Set([index]));
-      } else {
-        setSelectedParagraphs((prevSelected) => {
-          const newSelected = new Set(prevSelected);
-          if (newSelected.has(index)) {
-            newSelected.delete(index);
-          } else {
-            newSelected.add(index);
-          }
-          return newSelected;
-        });
-      }
-    },
-    [isAnnotating]
-  );
-
-  const saveAnnotation = useCallback(async () => {
-    if (!annotationService || !currentFile) return;
-    try {
-      const paragraphs = currentFile.content
-        .split("\n\n")
-        .filter((p) => p.trim());
-
-      for (const paragraphIndex of selectedParagraphs) {
-        const paragraphText = paragraphs[paragraphIndex];
-        await annotationService.trackParagraph(
-          currentFile.path,
-          paragraphText,
-          paragraphIndex
-        );
-
-        if (annotationText.trim()) {
-          await annotationService.addAnnotation({
-            articleId: currentFile.path,
-            paragraphIndex,
-            text: annotationText,
-            type: "note",
-          });
-        }
-      }
-
-      await loadAnnotations(currentFile.path);
-      setSelectedParagraphs(new Set());
-      setAnnotationText("");
-      setIsAnnotating(false);
-    } catch (error) {
-      console.error("Failed to save annotation:", error);
-    }
-  }, [
-    annotationService,
-    currentFile,
-    selectedParagraphs,
-    annotationText,
-    loadAnnotations,
-  ]);
-
+  // File importing (handles ZIP archives, directories, individual files)
   const handleImport = useCallback(
     async (importedFiles, dirHandle) => {
+      if (!importedFiles || importedFiles.length === 0) {
+        console.warn("No files to import");
+        return;
+      }
+
       try {
-        // First update the UI state
+        console.log(`Importing ${importedFiles.length} files...`);
+
+        // Update UI state first for immediate feedback
         setFiles((prevFiles) => {
           // Create a map of existing files by path for easy lookup
           const existingFilesMap = new Map(
@@ -249,27 +142,34 @@ export const AppProvider = ({children}) => {
           return Array.from(existingFilesMap.values());
         });
 
-        setDirectoryHandle(dirHandle);
+        // If a directory handle was provided, save it
+        if (dirHandle) {
+          setDirectoryHandle(dirHandle);
+        }
+
+        // Exit import mode if we weren't already in normal mode
         setIsImporting(false);
+
+        // Show sidebar with new content
         setIsSidebarVisible(true);
 
-        // Then attempt to persist to IndexedDB
+        // Then persist to database if service is available
         if (fileStorageService) {
           try {
-            console.log("Saving files to IndexedDB...");
+            console.log("Saving files to database...");
             await fileStorageService.saveFiles(importedFiles);
-            console.log("Files saved to IndexedDB successfully");
+            console.log("Files saved to database successfully");
           } catch (dbError) {
-            console.error("Error saving to IndexedDB:", dbError);
+            console.error("Error saving to database:", dbError);
 
             // Fallback to localStorage for critical metadata
             try {
-              // Only store minimal data (paths and names) to avoid localStorage size limits
+              // Only store minimal data to avoid localStorage size limits
               const minimalData = importedFiles.map((file) => ({
                 path: file.path,
                 name: file.name,
                 type: file.type,
-                // Don't include the full content in localStorage to avoid size limits
+                // Don't include content in localStorage
                 hasContent: !!file.content,
               }));
 
@@ -290,36 +190,167 @@ export const AppProvider = ({children}) => {
     [fileStorageService]
   );
 
-  const handleFileSelect = useCallback(
-    async (file) => {
-      setCurrentFile(file);
-      if (file) {
-        await loadAnnotations(file.path);
-        await OfflineService.cacheMarkdownFile(file);
+  // Annotation loading for current file
+  const loadAnnotations = useCallback(
+    async (articleId) => {
+      if (!annotationService || !articleId) return;
+
+      try {
+        console.log(`Loading annotations for article: ${articleId}`);
+        const articleAnnotations =
+          await annotationService.getAnnotationsForArticle(articleId);
+
+        // Organize annotations by paragraph index
+        const annotationMap = {};
+        articleAnnotations.forEach((annotation) => {
+          if (!annotationMap[annotation.paragraphIndex]) {
+            annotationMap[annotation.paragraphIndex] = [];
+          }
+          annotationMap[annotation.paragraphIndex].push(annotation);
+        });
+
+        setAnnotations(annotationMap);
+        console.log(`Loaded ${articleAnnotations.length} annotations`);
+      } catch (error) {
+        console.error("Failed to load annotations:", error);
+        setAnnotations({}); // Reset on error
       }
     },
-    [loadAnnotations]
+    [annotationService]
   );
 
+  // File selection
+  const handleFileSelect = useCallback(
+    async (file) => {
+      if (!file) return;
+
+      try {
+        console.log(`Selecting file: ${file.path}`);
+        setCurrentFile(file);
+
+        // Load annotations for this file if available
+        await loadAnnotations(file.path);
+
+        // Remove redundant caching - we already have the file in IndexedDB
+        // await OfflineService.cacheMarkdownFile(file);
+
+        // Update access timestamp if storage service is available
+        if (fileStorageService) {
+          try {
+            await fileStorageService.updateFileAccess(file.path);
+          } catch (error) {
+            console.error("Error updating file access timestamp:", error);
+            // Non-critical error, can continue
+          }
+        }
+      } catch (error) {
+        console.error("Error selecting file:", error);
+      }
+    },
+    [loadAnnotations, fileStorageService]
+  );
+
+  // Paragraph selection for annotations
+  const handleParagraphClick = useCallback(
+    (index) => {
+      if (!isAnnotating) {
+        setIsAnnotating(true);
+        setSelectedParagraphs(new Set([index]));
+      } else {
+        setSelectedParagraphs((prevSelected) => {
+          const newSelected = new Set(prevSelected);
+          if (newSelected.has(index)) {
+            newSelected.delete(index);
+          } else {
+            newSelected.add(index);
+          }
+          return newSelected;
+        });
+      }
+    },
+    [isAnnotating]
+  );
+
+  // Save annotation and track paragraphs
+  const saveAnnotation = useCallback(async () => {
+    if (!annotationService || !currentFile || selectedParagraphs.size === 0)
+      return;
+
+    try {
+      console.log("Saving annotation...");
+      const paragraphs = currentFile.content
+        .split("\n\n")
+        .filter((p) => p.trim());
+
+      // Process each selected paragraph
+      const promises = [];
+      for (const paragraphIndex of selectedParagraphs) {
+        const paragraphText = paragraphs[paragraphIndex];
+
+        // Track paragraph for future reference
+        promises.push(
+          annotationService.trackParagraph(
+            currentFile.path,
+            paragraphText,
+            paragraphIndex
+          )
+        );
+
+        // Add annotation if there's text
+        if (annotationText.trim()) {
+          promises.push(
+            annotationService.addAnnotation({
+              articleId: currentFile.path,
+              paragraphIndex,
+              text: annotationText,
+              type: "note",
+            })
+          );
+        }
+      }
+
+      // Wait for all operations to complete
+      await Promise.all(promises);
+
+      // Reload annotations to show the new ones
+      await loadAnnotations(currentFile.path);
+
+      // Reset annotation state
+      setSelectedParagraphs(new Set());
+      setAnnotationText("");
+      setIsAnnotating(false);
+
+      console.log("Annotation saved successfully");
+    } catch (error) {
+      console.error("Failed to save annotation:", error);
+    }
+  }, [
+    annotationService,
+    currentFile,
+    selectedParagraphs,
+    annotationText,
+    loadAnnotations,
+  ]);
+
+  // Online status handling
   useEffect(() => {
-    const loadCachedFiles = async () => {
-      const cached = await OfflineService.getCachedFiles();
-      setCachedFiles(cached);
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener("online", handleOnline);
+    window.addEventListener("offline", handleOffline);
+
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      window.removeEventListener("offline", handleOffline);
     };
-
-    loadCachedFiles();
   }, []);
 
-  const cancelAnnotation = useCallback(() => {
-    setSelectedParagraphs(new Set());
-    setAnnotationText("");
-    setIsAnnotating(false);
-  }, []);
-
-  // Add assetService to the context value
+  // Provide the context value
   return (
     <AppContext.Provider
       value={{
+        // State
         files,
         currentFile,
         isImporting,
@@ -328,19 +359,20 @@ export const AppProvider = ({children}) => {
         selectedParagraphs,
         isAnnotating,
         annotationText,
+        isSidebarVisible,
+        isOnline,
+        isInitialized,
+        assetService,
+
+        // Actions
         handleImport,
         handleFileSelect,
         handleParagraphClick,
         setAnnotationText,
         saveAnnotation,
         cancelAnnotation,
-        isSidebarVisible,
         setIsSidebarVisible,
-        isOnline,
-        cachedFiles,
-        isInitialized,
-        assetService, // Add this to expose the service
-        setIsImporting, // This will be helpful for navigation
+        setIsImporting,
       }}
     >
       {children}
@@ -355,3 +387,5 @@ export const useApp = () => {
   }
   return context;
 };
+
+export default AppProvider;

@@ -1,65 +1,34 @@
 // src/services/AnnotationService.js
+import {getDatabaseService} from "./DatabaseService";
 
 let instance = null;
+let initPromise = null;
 
 class AnnotationService {
   constructor() {
-    this.dbName = "markdownDB";
-    this.version = 3;
-    this.db = null;
+    this.initialized = false;
+    this.initPromise = null;
   }
 
   async initialize() {
-    if (this.db) return;
+    if (this.initialized) {
+      return Promise.resolve();
+    }
 
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.dbName, this.version);
+    if (this.initPromise) {
+      return this.initPromise;
+    }
 
-      request.onerror = () => reject(new Error("Failed to open database"));
+    console.log("AnnotationService: Starting initialization");
 
-      request.onsuccess = (event) => {
-        this.db = event.target.result;
-        resolve();
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-
-        // Create annotations store
-        if (!db.objectStoreNames.contains("annotations")) {
-          const annotationsStore = db.createObjectStore("annotations", {
-            keyPath: "id",
-            autoIncrement: true,
-          });
-
-          // Indexes for querying
-          annotationsStore.createIndex("articleId", "articleId", {
-            unique: false,
-          });
-          annotationsStore.createIndex("paragraphIndex", "paragraphIndex", {
-            unique: false,
-          });
-          annotationsStore.createIndex("createdAt", "createdAt", {
-            unique: false,
-          });
-          annotationsStore.createIndex("type", "type", {unique: false});
-        }
-
-        // Create paragraphs store for tracking selected paragraphs
-        if (!db.objectStoreNames.contains("paragraphs")) {
-          const paragraphsStore = db.createObjectStore("paragraphs", {
-            keyPath: "id",
-            autoIncrement: true,
-          });
-
-          paragraphsStore.createIndex("articleId", "articleId", {
-            unique: false,
-          });
-          paragraphsStore.createIndex("index", "index", {unique: false});
-          paragraphsStore.createIndex("hash", "hash", {unique: false});
-        }
-      };
+    this.initPromise = getDatabaseService().then((dbService) => {
+      this.db = dbService.db;
+      this.initialized = true;
+      console.log("AnnotationService: Database opened successfully");
+      return;
     });
+
+    return this.initPromise;
   }
 
   generateParagraphHash(text) {
@@ -73,96 +42,248 @@ class AnnotationService {
   }
 
   async addAnnotation(annotation) {
-    const transaction = this.db.transaction(["annotations"], "readwrite");
-    const store = transaction.objectStore("annotations");
+    await this.initialize();
 
-    const annotationWithMeta = {
-      ...annotation,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
 
-    return await store.add(annotationWithMeta);
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this.db.transaction(["annotations"], "readwrite");
+        const store = transaction.objectStore("annotations");
+
+        const annotationWithTimestamp = {
+          ...annotation,
+          created: new Date().toISOString(),
+          updated: new Date().toISOString(),
+        };
+
+        const request = store.add(annotationWithTimestamp);
+
+        request.onsuccess = (event) => {
+          const id = event.target.result;
+          resolve({...annotationWithTimestamp, id});
+        };
+
+        request.onerror = (event) => {
+          reject(new Error("Failed to add annotation"));
+        };
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   async getAnnotationsForArticle(articleId) {
-    const transaction = this.db.transaction(["annotations"], "readonly");
-    const store = transaction.objectStore("annotations");
-    const index = store.index("articleId");
+    await this.initialize();
+
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
 
     return new Promise((resolve, reject) => {
-      const request = index.getAll(articleId);
+      try {
+        const transaction = this.db.transaction(["annotations"], "readonly");
+        const store = transaction.objectStore("annotations");
+        const index = store.index("articleId");
 
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(new Error("Failed to get annotations"));
+        const request = index.getAll(articleId);
+
+        request.onsuccess = (event) => {
+          resolve(event.target.result || []);
+        };
+
+        request.onerror = (event) => {
+          reject(new Error("Failed to get annotations"));
+        };
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
   async getAnnotationsForParagraph(articleId, paragraphIndex) {
-    const transaction = this.db.transaction(["annotations"], "readonly");
-    const store = transaction.objectStore("annotations");
-    const index = store.index("articleId");
-
     return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(["annotations"], "readonly");
+      const store = transaction.objectStore("annotations");
+      const index = store.index("articleId");
+
+      transaction.onerror = (event) => {
+        console.error(
+          "AnnotationService: Error getting paragraph annotations:",
+          event.target.error
+        );
+        reject(new Error("Failed to get annotations"));
+      };
+
       const request = index.getAll(articleId);
 
       request.onsuccess = () => {
         const annotations = request.result.filter(
           (a) => a.paragraphIndex === paragraphIndex
         );
+        console.log(
+          `Retrieved ${annotations.length} annotations for paragraph ${paragraphIndex}`
+        );
         resolve(annotations);
       };
-
-      request.onerror = () => reject(new Error("Failed to get annotations"));
     });
   }
 
-  async trackParagraph(articleId, paragraphText, index) {
-    const transaction = this.db.transaction(["paragraphs"], "readwrite");
-    const store = transaction.objectStore("paragraphs");
+  async trackParagraph(articleId, text, index) {
+    await this.initialize();
 
-    const paragraph = {
-      articleId,
-      text: paragraphText,
-      index,
-      hash: this.generateParagraphHash(paragraphText),
-      createdAt: new Date().toISOString(),
-    };
+    if (!this.db) {
+      throw new Error("Database not initialized");
+    }
 
-    return await store.add(paragraph);
+    return new Promise((resolve, reject) => {
+      try {
+        const transaction = this.db.transaction(["paragraphs"], "readwrite");
+        const store = transaction.objectStore("paragraphs");
+
+        // First check if paragraph already exists
+        const articleIndex = store.index("articleId");
+        const request = articleIndex.openCursor(IDBKeyRange.only(articleId));
+
+        let exists = false;
+
+        request.onsuccess = (event) => {
+          const cursor = event.target.result;
+
+          if (cursor) {
+            const paragraph = cursor.value;
+
+            if (paragraph.index === index && paragraph.text === text) {
+              exists = true;
+              resolve(paragraph.id); // Paragraph already tracked
+              return;
+            }
+
+            cursor.continue();
+          } else {
+            // Not found, add new paragraph
+            if (!exists) {
+              const addRequest = store.add({
+                articleId,
+                text,
+                index,
+                tracked: new Date().toISOString(),
+              });
+
+              addRequest.onsuccess = (event) => {
+                resolve(event.target.result);
+              };
+
+              addRequest.onerror = (event) => {
+                reject(new Error("Failed to track paragraph"));
+              };
+            }
+          }
+        };
+
+        request.onerror = (event) => {
+          reject(new Error("Failed to check paragraph existence"));
+        };
+      } catch (error) {
+        reject(error);
+      }
+    });
   }
 
   async findParagraphByHash(hash) {
-    const transaction = this.db.transaction(["paragraphs"], "readonly");
-    const store = transaction.objectStore("paragraphs");
-    const index = store.index("hash");
-
     return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(["paragraphs"], "readonly");
+      const store = transaction.objectStore("paragraphs");
+      const index = store.index("hash");
+
+      transaction.onerror = (event) => {
+        console.error(
+          "AnnotationService: Error finding paragraph:",
+          event.target.error
+        );
+        reject(new Error("Failed to find paragraph"));
+      };
+
       const request = index.get(hash);
 
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(new Error("Failed to find paragraph"));
+      request.onsuccess = () => {
+        resolve(request.result);
+      };
     });
   }
 
   async deleteAnnotation(id) {
-    const transaction = this.db.transaction(["annotations"], "readwrite");
-    const store = transaction.objectStore("annotations");
-    return await store.delete(id);
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(["annotations"], "readwrite");
+      const store = transaction.objectStore("annotations");
+
+      transaction.oncomplete = () => {
+        console.log(`Annotation ${id} deleted successfully`);
+        resolve();
+      };
+
+      transaction.onerror = (event) => {
+        console.error(
+          "AnnotationService: Error deleting annotation:",
+          event.target.error
+        );
+        reject(new Error("Failed to delete annotation"));
+      };
+
+      // Delete the annotation
+      store.delete(id);
+    });
   }
 
   async updateAnnotation(id, changes) {
-    const transaction = this.db.transaction(["annotations"], "readwrite");
-    const store = transaction.objectStore("annotations");
+    return new Promise((resolve, reject) => {
+      const transaction = this.db.transaction(["annotations"], "readwrite");
+      const store = transaction.objectStore("annotations");
 
-    const annotation = await store.get(id);
-    const updatedAnnotation = {
-      ...annotation,
-      ...changes,
-      updatedAt: new Date().toISOString(),
-    };
+      transaction.oncomplete = () => {
+        console.log(`Annotation ${id} updated successfully`);
+        resolve();
+      };
 
-    return await store.put(updatedAnnotation);
+      transaction.onerror = (event) => {
+        console.error(
+          "AnnotationService: Error updating annotation:",
+          event.target.error
+        );
+        reject(new Error("Failed to update annotation"));
+      };
+
+      // First get the existing annotation
+      const getRequest = store.get(id);
+
+      getRequest.onsuccess = () => {
+        const annotation = getRequest.result;
+        if (!annotation) {
+          reject(new Error(`Annotation ${id} not found`));
+          return;
+        }
+
+        // Update the annotation
+        const updatedAnnotation = {
+          ...annotation,
+          ...changes,
+          updatedAt: new Date().toISOString(),
+        };
+
+        // Put the updated annotation
+        store.put(updatedAnnotation);
+      };
+
+      getRequest.onerror = (event) => {
+        console.error(
+          "AnnotationService: Error getting annotation:",
+          event.target.error
+        );
+        // Will also trigger transaction.onerror
+      };
+    });
   }
 }
 
