@@ -1,0 +1,289 @@
+/* annotation-styles.css */
+
+/* Highlighted text styling */
+.annotation-highlight {
+  background-color: rgba(255, 255, 0, 0.3);
+  border-bottom: 1px dotted #e8b208;
+  cursor: pointer;
+  padding: 0 2px;
+  margin: 0 -2px;
+  border-radius: 2px;
+  transition: background-color 0.2s;
+}
+
+.annotation-highlight:hover {
+  background-color: rgba(255, 255, 0, 0.5);
+}
+
+/* Annotation item in the panel */
+.annotation-item {
+  padding: 8px;
+  margin-bottom: 8px;
+  border: 1px solid #eee;
+  border-radius: 3px;
+  cursor: pointer;
+  background-color: #f9f9f9;
+  transition: background-color 0.2s;
+}
+
+.annotation-item:hover {
+  background-color: #f0f0f0;
+  border-color: #ddd;
+}
+
+.annotation-snippet {
+  font-weight: bold;
+  margin-bottom: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.annotation-content {
+  color: #555;
+  font-size: 0.95em;
+}
+
+/* Annotation popup */
+.annotation-popup {
+  position: absolute;
+  z-index: 1000;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  padding: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Annotation form */
+.annotation-form {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  z-index: 1001;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 400px;
+  max-width: 90vw;
+}
+
+.annotation-details {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  padding: 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  z-index: 1001;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  width: 400px;
+  max-width: 90vw;
+}
+
+/* Annotation panel */
+#annotation-panel {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 300px;
+  max-height: 80%;
+  overflow-y: auto;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  padding: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 999;
+}
+
+#annotation-panel h3 {
+  margin: 0 0 10px 0;
+  font-size: 1.2em;
+  color: #333;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 5px;
+}
+
+/* Responsive design for small screens */
+@media screen and (max-width: 768px) {
+  #annotation-panel {
+    width: 250px;
+  }
+
+  .annotation-form,
+  .annotation-details {
+    width: 320px;
+  }
+}
+
+/* Annotation Styles */
+
+/* Annotation sidebar */
+.annotation-sidebar {
+  width: 300px;
+  border-left: 1px solid #ddd;
+  padding: 16px;
+  background-color: #f9f9f9;
+  overflow-y: auto;
+}
+
+.annotation-sidebar h3 {
+  margin-top: 0;
+  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 500;
+  color: #333;
+}
+
+/* List of annotations in sidebar */
+.annotation-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Individual annotation item */
+.annotation-item {
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 12px;
+  background-color: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.annotation-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 3px 5px rgba(0, 0, 0, 0.1);
+}
+
+/* Quote from original text */
+.annotation-quote {
+  font-style: italic;
+  color: #555;
+  margin-bottom: 8px;
+  padding: 8px;
+  background-color: #f5f5f5;
+  border-left: 3px solid #0366d6;
+  border-radius: 0 4px 4px 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+/* User's annotation note */
+.annotation-note {
+  margin-bottom: 8px;
+  line-height: 1.4;
+  color: #333;
+}
+
+/* Metadata about the annotation */
+.annotation-meta {
+  font-size: 12px;
+  color: #666;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  border-top: 1px solid #eee;
+  padding-top: 8px;
+}
+
+/* Link to original file */
+.file-link {
+  color: #0366d6;
+  text-decoration: none;
+}
+
+.file-link:hover {
+  text-decoration: underline;
+}
+
+/* Tags for annotations */
+.annotation-tags {
+  display: inline-block;
+  background-color: #f0f4ff;
+  border: 1px solid #dae4fd;
+  color: #4a6bdf;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font-size: 11px;
+}
+
+/* Empty state when no annotations exist */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 200px;
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}
+
+.empty-state p {
+  margin: 10px 0;
+}
+
+/* Error states */
+.error {
+  color: #b71c1c;
+}
+
+/* Form for creating/editing annotations */
+.annotation-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.annotation-form textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 14px;
+  resize: vertical;
+}
+
+.annotation-form input[type="text"] {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.annotation-form .form-buttons {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.annotation-form button {
+  padding: 6px 12px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.annotation-form button.primary {
+  background-color: #0366d6;
+  color: white;
+}
+
+.annotation-form button.cancel {
+  background-color: #f5f5f5;
+  color: #333;
+  border: 1px solid #ddd;
+}

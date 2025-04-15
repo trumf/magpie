@@ -1,0 +1,33 @@
+{
+  "name": "zip-file-manager",
+  "version": "1.0.0",
+  "description": "A JavaScript module for handling ZIP file imports and storage in IndexedDB",
+  "main": "ZipFileManager.js",
+  "type": "module",
+  "scripts": {
+    "test": "npm run test:all",
+    "test:all": "npm run test:jest && npm run test:node",
+    "test:jest": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js",
+    "test:node": "node --test ZipFileManager.ReadStatus.test.js ZipFileManager.sort.test.js HeadlineExtraction.test.js ArticleNavigation.test.js",
+    "test:annotations": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js MarkdownAnnotation",
+    "test:readstatus": "node --test ZipFileManager.ReadStatus.test.js",
+    "test:headline": "node --test HeadlineExtraction.test.js",
+    "test:article": "node --test ArticleNavigation.test.js",
+    "test:sort": "node --test ZipFileManager.sort.test.js",
+    "deploy": "gh-pages -d ."
+  },
+  "keywords": [
+    "zip",
+    "indexeddb",
+    "file",
+    "storage",
+    "browser"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "gh-pages": "^6.3.0",
+    "jest": "^29.7.0",
+    "jest-environment-jsdom": "^29.7.0"
+  }
+}
