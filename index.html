@@ -211,20 +211,54 @@
         margin-right: 8px;
       }
 
+      /* --- Mobile Header --- */
+      .mobile-header {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 60px;
+        background-color: #f5f5f5;
+        border-bottom: 1px solid #ddd;
+        z-index: 1050;
+        padding: 0 15px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        align-items: center;
+        justify-content: space-between;
+      }
+
+      .mobile-header-left {
+        display: flex;
+        align-items: center;
+      }
+
+      .mobile-header-right {
+        display: flex;
+        align-items: center;
+      }
+
+      .mobile-header-title {
+        margin-left: 15px;
+        font-size: 18px;
+        font-weight: 500;
+      }
+
+      .mobile-menu-toggle {
+        background: transparent;
+        color: #333;
+        border: none;
+        padding: 10px;
+        cursor: pointer;
+        font-size: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
       /* --- Responsive Sidebar Styles --- */
       .menu-toggle {
         display: none;
-        position: fixed;
-        top: 25px;
-        left: 25px;
-        z-index: 1100;
-        background: #333;
-        color: white;
-        border: none;
-        padding: 0.5rem 0.8rem;
-        cursor: pointer;
-        border-radius: 4px;
-        font-size: 1.2rem;
       }
 
       .overlay {
@@ -241,16 +275,22 @@
       @media (max-width: 768px) {
         body {
           padding: 10px;
+          padding-top: 70px; /* Add space for mobile header */
         }
+
+        .mobile-header {
+          display: flex;
+        }
+
         .container {
-          height: calc(100vh - 20px);
+          height: calc(100vh - 80px);
         }
 
         .sidebar {
           position: fixed;
           left: 0;
-          top: 0;
-          height: 100%;
+          top: 60px; /* Position below mobile header */
+          height: calc(100% - 60px); /* Adjust height to account for header */
           transform: translateX(-100%);
           transition: transform 0.3s ease;
           z-index: 1000;
@@ -265,20 +305,25 @@
         }
 
         .menu-toggle {
-          display: block;
-          top: 15px;
-          left: 15px;
-          z-index: 1100;
-        }
-
-        .main-content {
+          display: none; /* Hide original menu toggle */
         }
       }
       /* --- End Responsive Sidebar Styles --- */
     </style>
   </head>
   <body>
-    <!-- Add Menu Toggle Button -->
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+      <div class="mobile-header-left">
+        <button class="mobile-menu-toggle" onclick="toggleMenu()">☰</button>
+        <div class="mobile-header-title">MD Viewer</div>
+      </div>
+      <div class="mobile-header-right">
+        <!-- Annotation toggle will go here -->
+      </div>
+    </div>
+
+    <!-- Original Menu Toggle Button (now hidden via CSS on mobile) -->
     <button class="menu-toggle" onclick="toggleMenu()">☰</button>
 
     <div class="container">

@@ -1140,18 +1140,12 @@ export const AnnotationSystem = (function () {
       mobileAnnotationBtn.textContent = "📝";
       mobileAnnotationBtn.className = "mobile-annotation-btn";
       Object.assign(mobileAnnotationBtn.style, {
-        position: "fixed",
-        bottom: "20px",
-        right: "20px",
-        backgroundColor: "#4285f4",
-        color: "white",
+        background: "transparent",
+        color: "#333",
         border: "none",
-        borderRadius: "50%",
-        width: "60px",
-        height: "60px",
-        fontSize: "16px",
-        boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-        zIndex: "100",
+        padding: "10px",
+        cursor: "pointer",
+        fontSize: "20px",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -1166,11 +1160,11 @@ export const AnnotationSystem = (function () {
           document.body.classList.add("annotation-mode");
           // Show status indicator
           this.showStatusIndicator("Annotation Mode: ON");
-          mobileAnnotationBtn.style.backgroundColor = "#fbbc05"; // Visual feedback
+          mobileAnnotationBtn.style.color = "#fbbc05"; // Visual feedback
         } else {
           document.body.classList.remove("annotation-mode");
           this.showStatusIndicator("Annotation Mode: OFF");
-          mobileAnnotationBtn.style.backgroundColor = "#4285f4";
+          mobileAnnotationBtn.style.color = "#333";
         }
       });
 
@@ -1261,8 +1255,32 @@ export const AnnotationSystem = (function () {
         }
       });
 
-      // Append the annotation mode button to the body
-      document.body.appendChild(mobileAnnotationBtn);
+      // Find the mobile header right section and append the button there
+      const mobileHeaderRight = document.querySelector(".mobile-header-right");
+      if (mobileHeaderRight) {
+        mobileHeaderRight.appendChild(mobileAnnotationBtn);
+      } else {
+        // Fallback to body if mobile header is not found
+        console.warn(
+          "Mobile header not found, appending annotation button to body"
+        );
+        // Set position fixed styles for fallback
+        Object.assign(mobileAnnotationBtn.style, {
+          position: "fixed",
+          bottom: "20px",
+          right: "20px",
+          backgroundColor: "#4285f4",
+          color: "white",
+          border: "none",
+          borderRadius: "50%",
+          width: "60px",
+          height: "60px",
+          fontSize: "16px",
+          boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+          zIndex: "100",
+        });
+        document.body.appendChild(mobileAnnotationBtn);
+      }
     },
 
     /**
