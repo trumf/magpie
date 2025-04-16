@@ -54,6 +54,32 @@
         transition: opacity 0.15s ease-out;
       }
 
+      /* Add styles to handle long words in article content */
+      .main-content {
+        /* Break long words */
+        word-wrap: break-word;
+        overflow-wrap: break-word;
+        hyphens: auto;
+
+        /* Ensure content doesn't cause horizontal overflow */
+        max-width: 100%;
+      }
+
+      /* Target links, pre, and code elements specifically */
+      .main-content a,
+      .main-content pre,
+      .main-content code {
+        word-break: break-all; /* More aggressive breaking for URLs and code */
+        max-width: 100%;
+        white-space: pre-wrap; /* For code blocks to wrap properly */
+      }
+
+      /* Ensure all images are responsive and don't overflow */
+      .main-content img {
+        max-width: 100%;
+        height: auto;
+      }
+
       .file-controls {
         padding: 16px;
         border-bottom: 1px solid #ddd;
