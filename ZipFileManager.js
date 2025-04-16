@@ -13,7 +13,7 @@ const DEFAULT_CONFIG = {
   dbName: "ZipFileDB",
   dbVersion: 1,
   storeName: "zipFiles",
-  maxContentPreviewLength: 1000,
+  maxContentPreviewLength: 10000000,
   statusDisplayDuration: 5000,
 };
 
@@ -137,13 +137,7 @@ export class ZipFileManager {
                 path,
                 displayName,
                 size: content.length,
-                content:
-                  content.length > this.config.maxContentPreviewLength
-                    ? content.substring(
-                        0,
-                        this.config.maxContentPreviewLength
-                      ) + "...[truncated]"
-                    : content,
+                content: content,
               });
               totalSize += content.length;
             }
