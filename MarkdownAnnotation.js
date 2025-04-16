@@ -14,6 +14,18 @@ export const AnnotationSystem = (function () {
   let storage = null;
   let currentFileId = null;
   let currentFilePath = null;
+  let isAnnotationMode = false;
+  let mobileAnnotationBtn = null;
+
+  // Check if the client is using a mobile device
+  function isMobileDevice() {
+    return (
+      window.innerWidth <= 768 ||
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+      )
+    );
+  }
 
   // Initialize the annotation storage
   function initStorage() {
@@ -61,7 +73,11 @@ export const AnnotationSystem = (function () {
       currentFilePath = filePath;
 
       // Initialize storage and load existing annotations
-      this.setupSelectionListener();
+      if (isMobileDevice()) {
+        this.setupMobileAnnotations();
+      } else {
+        this.setupSelectionListener();
+      }
       this.loadAnnotations();
     },
 
@@ -1106,6 +1122,335 @@ export const AnnotationSystem = (function () {
     createArticleAnnotation: function () {
       // Call showAnnotationForm with null selection to indicate article note
       this.showAnnotationForm(null);
+    },
+
+    /**
+     * Set up mobile-friendly annotation mode
+     */
+    setupMobileAnnotations: function () {
+      if (!currentDocument) return;
+
+      // Remove existing button if present
+      if (mobileAnnotationBtn && mobileAnnotationBtn.parentNode) {
+        mobileAnnotationBtn.parentNode.removeChild(mobileAnnotationBtn);
+      }
+
+      // Create the annotation mode toggle button
+      mobileAnnotationBtn = document.createElement("button");
+      mobileAnnotationBtn.textContent = "📝";
+      mobileAnnotationBtn.className = "mobile-annotation-btn";
+      Object.assign(mobileAnnotationBtn.style, {
+        position: "fixed",
+        bottom: "20px",
+        right: "20px",
+        backgroundColor: "#4285f4",
+        color: "white",
+        border: "none",
+        borderRadius: "50%",
+        width: "60px",
+        height: "60px",
+        fontSize: "16px",
+        boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
+        zIndex: "100",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      });
+
+      // Add toggle annotation mode functionality
+      mobileAnnotationBtn.addEventListener("click", () => {
+        isAnnotationMode = !isAnnotationMode;
+
+        // Toggle annotation mode class on body
+        if (isAnnotationMode) {
+          document.body.classList.add("annotation-mode");
+          // Show status indicator
+          this.showStatusIndicator("Annotation Mode: ON");
+          mobileAnnotationBtn.style.backgroundColor = "#fbbc05"; // Visual feedback
+        } else {
+          document.body.classList.remove("annotation-mode");
+          this.showStatusIndicator("Annotation Mode: OFF");
+          mobileAnnotationBtn.style.backgroundColor = "#4285f4";
+        }
+      });
+
+      // Add CSS for annotation mode
+      const style = document.createElement("style");
+      style.textContent = `
+        .annotation-mode * {
+          -webkit-user-select: none;
+          -moz-user-select: none;
+          -ms-user-select: none;
+          user-select: none;
+        }
+        
+        .annotation-mode p, 
+        .annotation-mode h1, 
+        .annotation-mode h2, 
+        .annotation-mode h3, 
+        .annotation-mode h4, 
+        .annotation-mode h5, 
+        .annotation-mode h6 {
+          cursor: pointer;
+        }
+        
+        .temp-selected {
+          background-color: rgba(66, 133, 244, 0.2);
+          border-radius: 4px;
+          transition: background-color 0.2s;
+        }
+        
+        .mobile-annotation-form {
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background: white;
+          padding: 20px;
+          box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+          z-index: 200;
+          border-top-left-radius: 15px;
+          border-top-right-radius: 15px;
+          transform: translateY(100%);
+          transition: transform 0.3s ease-out;
+        }
+        
+        .mobile-annotation-form.visible {
+          transform: translateY(0);
+        }
+        
+        .status-indicator {
+          position: fixed;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          background-color: rgba(0, 0, 0, 0.7);
+          color: white;
+          padding: 8px 16px;
+          border-radius: 20px;
+          font-size: 14px;
+          z-index: 1000;
+          transition: opacity 0.3s;
+          opacity: 0;
+          pointer-events: none;
+        }
+        
+        .status-indicator.visible {
+          opacity: 1;
+        }
+      `;
+      document.head.appendChild(style);
+
+      // Add click handler for paragraphs and headings
+      currentDocument.addEventListener("click", (e) => {
+        if (!isAnnotationMode) return;
+
+        // Find the closest paragraph or heading element
+        const targetElem = e.target.closest("p, h1, h2, h3, h4, h5, h6");
+        if (targetElem) {
+          // Remove any previous temp selections
+          document.querySelectorAll(".temp-selected").forEach((el) => {
+            el.classList.remove("temp-selected");
+          });
+
+          // Add the temp-selected class to highlight
+          targetElem.classList.add("temp-selected");
+
+          // Show mobile annotation form
+          this.showMobileAnnotationForm(targetElem);
+        }
+      });
+
+      // Append the annotation mode button to the body
+      document.body.appendChild(mobileAnnotationBtn);
+    },
+
+    /**
+     * Show status indicator for mobile UI feedback
+     * @param {string} message - Message to display
+     */
+    showStatusIndicator: function (message) {
+      // Remove existing status indicator
+      const existingIndicator = document.querySelector(".status-indicator");
+      if (existingIndicator) {
+        existingIndicator.remove();
+      }
+
+      // Create and add status indicator
+      const indicator = document.createElement("div");
+      indicator.className = "status-indicator";
+      indicator.textContent = message;
+      document.body.appendChild(indicator);
+
+      // Show and hide with animation
+      setTimeout(() => indicator.classList.add("visible"), 10);
+      setTimeout(() => {
+        indicator.classList.remove("visible");
+        setTimeout(() => indicator.remove(), 300);
+      }, 2000);
+    },
+
+    /**
+     * Show mobile annotation form for a selected element
+     * @param {HTMLElement} element - The selected element to annotate
+     */
+    showMobileAnnotationForm: function (element) {
+      // Remove existing form if present
+      const existingForm = document.querySelector(".mobile-annotation-form");
+      if (existingForm) {
+        existingForm.remove();
+      }
+
+      // Get text content from the selected element
+      const selectedText = element.textContent.trim();
+
+      // Create the mobile annotation form
+      const form = document.createElement("div");
+      form.className = "mobile-annotation-form";
+
+      // Selected text display
+      const selectedTextDisplay = document.createElement("div");
+      Object.assign(selectedTextDisplay.style, {
+        backgroundColor: "#f8f9fa",
+        padding: "12px",
+        borderLeft: "4px solid #4285f4",
+        marginBottom: "15px",
+        borderRadius: "4px",
+        fontSize: "14px",
+        maxHeight: "100px",
+        overflowY: "auto",
+      });
+      selectedTextDisplay.textContent = selectedText;
+
+      // Text area for annotation
+      const textarea = document.createElement("textarea");
+      Object.assign(textarea.style, {
+        width: "100%",
+        height: "80px",
+        padding: "10px",
+        border: "1px solid #ddd",
+        borderRadius: "4px",
+        marginBottom: "15px",
+        fontFamily: "inherit",
+        boxSizing: "border-box",
+      });
+      textarea.placeholder = "Add your annotation here...";
+
+      // Tags input field
+      const tagsLabel = document.createElement("div");
+      Object.assign(tagsLabel.style, {
+        marginBottom: "5px",
+        fontWeight: "bold",
+      });
+      tagsLabel.textContent = "Tags (separate with commas):";
+
+      const tagsInput = document.createElement("input");
+      Object.assign(tagsInput.style, {
+        width: "100%",
+        marginBottom: "15px",
+        padding: "8px",
+        boxSizing: "border-box",
+        border: "1px solid #ddd",
+        borderRadius: "4px",
+      });
+      tagsInput.placeholder = "important, question, todo...";
+      tagsInput.type = "text";
+
+      // Buttons container
+      const buttonContainer = document.createElement("div");
+      Object.assign(buttonContainer.style, {
+        display: "flex",
+        justifyContent: "flex-end",
+        gap: "10px",
+      });
+
+      // Cancel button
+      const cancelButton = document.createElement("button");
+      Object.assign(cancelButton.style, {
+        padding: "10px 15px",
+        border: "none",
+        borderRadius: "4px",
+        cursor: "pointer",
+        backgroundColor: "#f1f3f4",
+        color: "#333",
+      });
+      cancelButton.textContent = "Cancel";
+
+      // Save button
+      const saveButton = document.createElement("button");
+      Object.assign(saveButton.style, {
+        padding: "10px 15px",
+        border: "none",
+        borderRadius: "4px",
+        cursor: "pointer",
+        backgroundColor: "#4285f4",
+        color: "white",
+      });
+      saveButton.textContent = "Save";
+
+      // Add event listeners
+      cancelButton.addEventListener("click", () => {
+        form.classList.remove("visible");
+        setTimeout(() => form.remove(), 300);
+        element.classList.remove("temp-selected");
+      });
+
+      saveButton.addEventListener("click", async () => {
+        const annotationText = textarea.value.trim();
+
+        if (annotationText) {
+          // Process the tags input
+          const tagsValue = tagsInput.value.trim();
+          const tags = tagsValue
+            ? tagsValue
+                .split(",")
+                .map((tag) => tag.trim())
+                .filter((tag) => tag.length > 0)
+            : [];
+
+          // Create anchor for the paragraph
+          const anchor = {
+            text: selectedText,
+            context: selectedText,
+            textPosition: 0,
+          };
+
+          // Create and save the annotation
+          await this.createAnnotationWithAnchor(anchor, annotationText, tags);
+
+          // Hide and remove form
+          form.classList.remove("visible");
+          setTimeout(() => form.remove(), 300);
+
+          // Remove selection highlight
+          element.classList.remove("temp-selected");
+
+          // Show confirmation
+          this.showStatusIndicator("Annotation saved!");
+        } else {
+          // Show error for empty note
+          textarea.style.borderColor = "red";
+        }
+      });
+
+      // Build the form
+      buttonContainer.appendChild(cancelButton);
+      buttonContainer.appendChild(saveButton);
+
+      form.appendChild(selectedTextDisplay);
+      form.appendChild(textarea);
+      form.appendChild(tagsLabel);
+      form.appendChild(tagsInput);
+      form.appendChild(buttonContainer);
+
+      // Add to document
+      document.body.appendChild(form);
+
+      // Trigger animation after a brief delay
+      setTimeout(() => form.classList.add("visible"), 10);
+
+      // Focus the textarea
+      setTimeout(() => textarea.focus(), 300);
     },
   };
 })();
