@@ -1,9 +1,13 @@
 /**
  * Test the file sorting functionality in ZipFileManager
+ * Uses Jest test runner.
  */
 
-import {test} from "node:test";
-import assert from "node:assert";
+// Remove Node.js runner imports
+// import {test} from "node:test";
+// import assert from "node:assert";
+
+// Import the class to test
 import {ZipFileManager} from "./ZipFileManager.js";
 
 test("sortFilesByReadStatus should sort files with unread files first", () => {
@@ -34,10 +38,10 @@ test("sortFilesByReadStatus should sort files with unread files first", () => {
   );
 
   // Verify unread files come first
-  assert.strictEqual(sortedFiles[0].path, "b.md");
-  assert.strictEqual(sortedFiles[1].path, "d.md");
-  assert.strictEqual(sortedFiles[2].path, "a.md");
-  assert.strictEqual(sortedFiles[3].path, "c.md");
+  expect(sortedFiles[0].path).toBe("b.md");
+  expect(sortedFiles[1].path).toBe("d.md");
+  expect(sortedFiles[2].path).toBe("a.md");
+  expect(sortedFiles[3].path).toBe("c.md");
 });
 
 test("sortFilesByReadStatus should sort files with read files first", () => {
@@ -65,10 +69,10 @@ test("sortFilesByReadStatus should sort files with read files first", () => {
   const sortedFiles = zipManager.sortFilesByReadStatus(testFiles, "read_first");
 
   // Verify read files come first
-  assert.strictEqual(sortedFiles[0].path, "a.md");
-  assert.strictEqual(sortedFiles[1].path, "c.md");
-  assert.strictEqual(sortedFiles[2].path, "b.md");
-  assert.strictEqual(sortedFiles[3].path, "d.md");
+  expect(sortedFiles[0].path).toBe("a.md");
+  expect(sortedFiles[1].path).toBe("c.md");
+  expect(sortedFiles[2].path).toBe("b.md");
+  expect(sortedFiles[3].path).toBe("d.md");
 });
 
 test("sortFilesByReadStatus should maintain alphabetical sorting within each group", () => {
@@ -99,10 +103,10 @@ test("sortFilesByReadStatus should maintain alphabetical sorting within each gro
   );
 
   // Verify unread files come first and are alphabetically sorted
-  assert.strictEqual(unreadFirstSorted[0].path, "b.md");
-  assert.strictEqual(unreadFirstSorted[1].path, "d.md");
-  assert.strictEqual(unreadFirstSorted[2].path, "a.md");
-  assert.strictEqual(unreadFirstSorted[3].path, "c.md");
+  expect(unreadFirstSorted[0].path).toBe("b.md");
+  expect(unreadFirstSorted[1].path).toBe("d.md");
+  expect(unreadFirstSorted[2].path).toBe("a.md");
+  expect(unreadFirstSorted[3].path).toBe("c.md");
 
   // Sort the files (read first)
   const readFirstSorted = zipManager.sortFilesByReadStatus(
@@ -111,10 +115,10 @@ test("sortFilesByReadStatus should maintain alphabetical sorting within each gro
   );
 
   // Verify read files come first and are alphabetically sorted
-  assert.strictEqual(readFirstSorted[0].path, "a.md");
-  assert.strictEqual(readFirstSorted[1].path, "c.md");
-  assert.strictEqual(readFirstSorted[2].path, "b.md");
-  assert.strictEqual(readFirstSorted[3].path, "d.md");
+  expect(readFirstSorted[0].path).toBe("a.md");
+  expect(readFirstSorted[1].path).toBe("c.md");
+  expect(readFirstSorted[2].path).toBe("b.md");
+  expect(readFirstSorted[3].path).toBe("d.md");
 });
 
 test("sortFilesByReadStatus should handle all-read files", () => {
@@ -143,8 +147,8 @@ test("sortFilesByReadStatus should handle all-read files", () => {
   );
 
   // Verify files are still alphabetically sorted
-  assert.strictEqual(sortedFiles[0].path, "a.md");
-  assert.strictEqual(sortedFiles[1].path, "c.md");
+  expect(sortedFiles[0].path).toBe("a.md");
+  expect(sortedFiles[1].path).toBe("c.md");
 });
 
 test("sortFilesByReadStatus should handle all-unread files", () => {
@@ -160,8 +164,8 @@ test("sortFilesByReadStatus should handle all-unread files", () => {
   const sortedFiles = zipManager.sortFilesByReadStatus(testFiles, "read_first");
 
   // Verify files are still alphabetically sorted
-  assert.strictEqual(sortedFiles[0].path, "a.md");
-  assert.strictEqual(sortedFiles[1].path, "c.md");
+  expect(sortedFiles[0].path).toBe("a.md");
+  expect(sortedFiles[1].path).toBe("c.md");
 });
 
 test("sortFilesByReadStatus should sort by recent read date when using read_date mode", () => {
@@ -194,11 +198,11 @@ test("sortFilesByReadStatus should sort by recent read date when using read_date
   const sortedFiles = zipManager.sortFilesByReadStatus(testFiles, "read_date");
 
   // Verify files are sorted by readDate (most recent first), with unread files at end
-  assert.strictEqual(sortedFiles[0].path, "c.md");
-  assert.strictEqual(sortedFiles[1].path, "d.md");
-  assert.strictEqual(sortedFiles[2].path, "a.md");
+  expect(sortedFiles[0].path).toBe("c.md");
+  expect(sortedFiles[1].path).toBe("d.md");
+  expect(sortedFiles[2].path).toBe("a.md");
   // Unread files last, alphabetically
-  assert.strictEqual(sortedFiles[3].path, "b.md");
+  expect(sortedFiles[3].path).toBe("b.md");
 });
 
 test("sortFilesByReadStatus should handle empty array", () => {
@@ -208,7 +212,7 @@ test("sortFilesByReadStatus should handle empty array", () => {
   const sortedFiles = zipManager.sortFilesByReadStatus([], "unread_first");
 
   // Verify empty array is returned
-  assert.deepStrictEqual(sortedFiles, []);
+  expect(sortedFiles).toEqual([]);
 });
 
 test("sortFilesByReadStatus should handle invalid sort order", () => {
@@ -226,6 +230,6 @@ test("sortFilesByReadStatus should handle invalid sort order", () => {
   );
 
   // Verify files are sorted alphabetically
-  assert.strictEqual(sortedFiles[0].path, "a.md");
-  assert.strictEqual(sortedFiles[1].path, "b.md");
+  expect(sortedFiles[0].path).toBe("a.md");
+  expect(sortedFiles[1].path).toBe("b.md");
 });

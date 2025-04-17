@@ -6,14 +6,9 @@
   "type": "module",
   "scripts": {
     "test": "npm run test:all",
-    "test:all": "npm run test:jest && npm run test:node",
-    "test:jest": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js",
-    "test:node": "node --test ZipFileManager.ReadStatus.test.js ZipFileManager.sort.test.js HeadlineExtraction.test.js ArticleNavigation.test.js",
-    "test:annotations": "node --experimental-vm-modules node_modules/jest/bin/jest.js --config jest.config.js MarkdownAnnotation",
-    "test:readstatus": "node --test ZipFileManager.ReadStatus.test.js",
-    "test:headline": "node --test HeadlineExtraction.test.js",
-    "test:article": "node --test ArticleNavigation.test.js",
-    "test:sort": "node --test ZipFileManager.sort.test.js",
+    "test:all": "npm run test:jest",
+    "test:jest": "jest",
+    "test:annotations": "jest MarkdownAnnotation",
     "deploy": "gh-pages -d ."
   },
   "keywords": [
@@ -26,6 +21,9 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "@babel/core": "^7.26.10",
+    "@babel/preset-env": "^7.26.9",
+    "babel-jest": "^29.7.0",
     "gh-pages": "^6.3.0",
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0"

@@ -1,9 +1,13 @@
 /**
  * Test the file read state tracking without IndexedDB dependencies
+ * Uses Jest test runner.
  */
 
-import {test} from "node:test";
-import assert from "node:assert";
+// Remove Node.js runner imports
+// import {test} from "node:test";
+// import assert from "node:assert";
+
+// Import the class to test
 import {ZipFileManager} from "./ZipFileManager.js";
 
 test("updateFileReadStatus should mark a file as read", () => {
@@ -25,8 +29,8 @@ test("updateFileReadStatus should mark a file as read", () => {
 
   // Verify the file is marked as read
   const file = updatedZipData.files.find((f) => f.path === "document.md");
-  assert.strictEqual(file.isRead, true);
-  assert.ok(file.readDate);
+  expect(file.isRead).toBe(true);
+  expect(file.readDate).toBeTruthy();
 });
 
 test("updateFileReadStatus should mark a file as unread", () => {
@@ -55,8 +59,8 @@ test("updateFileReadStatus should mark a file as unread", () => {
 
   // Verify the file is marked as unread
   const file = updatedZipData.files.find((f) => f.path === "document.md");
-  assert.strictEqual(file.isRead, false);
-  assert.strictEqual(file.readDate, undefined);
+  expect(file.isRead).toBe(false);
+  expect(file.readDate).toBeUndefined();
 });
 
 test("updateFileReadStatus should handle non-existent files", () => {
@@ -77,24 +81,20 @@ test("updateFileReadStatus should handle non-existent files", () => {
   );
 
   // Verify the original data is unchanged
-  assert.deepStrictEqual(updatedZipData, zipData);
+  expect(updatedZipData).toEqual(zipData);
 });
 
 test("updateFileReadStatus should handle invalid input", () => {
   const zipManager = new ZipFileManager();
 
   // Test with null data
-  assert.strictEqual(
-    zipManager.updateFileReadStatus(null, "document.md", true),
-    null
-  );
+  expect(zipManager.updateFileReadStatus(null, "document.md", true)).toBeNull();
 
   // Test with empty array
   const emptyData = {files: []};
-  assert.deepStrictEqual(
-    zipManager.updateFileReadStatus(emptyData, "document.md", true),
-    emptyData
-  );
+  expect(
+    zipManager.updateFileReadStatus(emptyData, "document.md", true)
+  ).toEqual(emptyData);
 });
 
 test("checkFileReadStatus should return true for read files", () => {
@@ -118,7 +118,7 @@ test("checkFileReadStatus should return true for read files", () => {
   const isRead = zipManager.checkFileReadStatus(zipData, "document.md");
 
   // Verify result
-  assert.strictEqual(isRead, true);
+  expect(isRead).toBe(true);
 });
 
 test("checkFileReadStatus should return false for unread files", () => {
@@ -135,7 +135,7 @@ test("checkFileReadStatus should return false for unread files", () => {
   const isRead = zipManager.checkFileReadStatus(zipData, "document.md");
 
   // Verify result
-  assert.strictEqual(isRead, false);
+  expect(isRead).toBe(false);
 });
 
 test("checkFileReadStatus should return false for non-existent files", () => {
@@ -152,21 +152,17 @@ test("checkFileReadStatus should return false for non-existent files", () => {
   const isRead = zipManager.checkFileReadStatus(zipData, "nonexistent.md");
 
   // Verify result
-  assert.strictEqual(isRead, false);
+  expect(isRead).toBe(false);
 });
 
 test("checkFileReadStatus should handle invalid input", () => {
   const zipManager = new ZipFileManager();
 
   // Test with null data
-  assert.strictEqual(
-    zipManager.checkFileReadStatus(null, "document.md"),
-    false
-  );
+  expect(zipManager.checkFileReadStatus(null, "document.md")).toBe(false);
 
   // Test with empty array
-  assert.strictEqual(
-    zipManager.checkFileReadStatus({files: []}, "document.md"),
+  expect(zipManager.checkFileReadStatus({files: []}, "document.md")).toBe(
     false
   );
 });

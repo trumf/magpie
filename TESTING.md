@@ -1,171 +1,132 @@
 # Testing ZipFileManager
 
-This document outlines our approach to testing the ZipFileManager module, which uses browser APIs like IndexedDB and FileReader that require special handling in a test environment.
+This document outlines our approach to testing the ZipFileManager module and related components, which use browser APIs like IndexedDB and FileReader that require special handling in a test environment.
 
 ## Test Organization
 
-We've organized the tests into multiple focused test files to achieve better isolation and maintainability:
-
-1. **basic.test.js** - Sanity test to verify Jest is working properly
-2. **ZipFileManager.simple.test.js** - Tests simple utility functions that don't require mocking
-3. **ZipFileManager.core.test.js** - Tests core functions including formatSize, showStatus, and HTML generation
-4. **ZipFileManager.db.test.js** - Tests database operations with controlled mocking
-5. **ZipFileManager.ReadStatus.test.js** - Tests read/unread state functionality using Node.js test runner
-6. **AnnotationStorage.test.js** - Tests annotation storage with specialized IndexedDB mocks
-7. **AnnotationViewer.test.js** - Tests annotation viewer with UI component mocking
-8. **HeadlineExtraction.test.js** - Tests headline extraction from markdown content
+We use Jest as our sole test runner. Tests are organized into multiple focused `*.test.js` files (e.g., `ZipFileManager.core.test.js`, `AnnotationStorage.test.js`) to achieve better isolation and maintainability.
 
 ## Module System Requirements
 
-Our project uses ES modules exclusively. This has important implications for testing:
+Our project uses ES modules (`import`/`export`) exclusively. This has important implications for testing:
 
 ### ES Modules vs CommonJS
 
-- **Package Configuration**: Our package.json includes `"type": "module"`, making ES modules the default.
+- **Package Configuration**: Our `package.json` includes `"type": "module"`, making ES modules the default.
 - **Import Syntax**: All files (including tests) must use `import`/`export` syntax, not CommonJS `require`.
-- **Mocking Challenges**: Jest's mocking system was originally designed for CommonJS and has some limitations with ES modules.
+- **Jest Configuration**: Jest is configured with `babel-jest` to transform ES modules correctly during testing.
 
 ### Testing Policies for ES Modules
 
-1. **Always use import/export syntax**: Never use `require()` in any test or production code.
-2. **Mock imports correctly**: Use `jest.mock()` without the `{virtual: true}` option for ES modules.
-3. **Alternative for complex cases**: Use Node.js built-in test runner for tests that have complex module dependencies.
+1.  **Always use import/export syntax**: Never use `require()` in any test or production code.
+2.  **Mock imports correctly**: Use `jest.mock()` for mocking modules.
 
 ## Test Setup Organization
 
-We use multiple test setup files to properly isolate test environments:
+We use multiple files to manage test setup mocks and configurations:
 
-1. **jest.setup.js**: Base setup with mock implementations for browser APIs
+1.  **`jest.config.js`**: Configures Jest to use the `jsdom` environment, find all `*.test.js` files, use Babel for transformations, and run a global setup file.
+2.  **`.babelrc`**: Configures Babel (`@babel/preset-env`) to transpile JavaScript for the current Node environment, ensuring compatibility with Jest.
+3.  **`jest.setup.js`**: The primary global setup file run before all tests. It provides custom mock implementations for browser APIs (IndexedDB, FileReader, JSZip) and a basic Jest-like global API (`jest.fn`, `jest.spyOn`, etc.) needed because we run Jest in a Node environment.
+4.  **`annotation-test-setup.js`**: Provides enhanced IndexedDB mocking specifically for `AnnotationStorage` tests. It is **imported directly** at the top of `AnnotationStorage.test.js`.
+5.  **`annotation-viewer-test-setup.js`**: Provides UI-specific mocks (`fetch`, `localStorage`, etc.) for `AnnotationViewer` tests. It is **imported directly** at the top of `AnnotationViewer.test.js`.
 
-   - Creates mock functions that mimic Jest's mocking API
-   - Provides basic mocks for IndexedDB, FileReader, JSZip, etc.
+This approach ensures that global mocks are available everywhere, while specialized mocks are loaded only where needed, avoiding conflicts and keeping the global scope cleaner.
 
-2. **annotation-test-setup.js**: Enhanced IndexedDB mocking for annotation tests
+## Testing Approach: Jest with JSDOM
 
-   - Provides a more detailed IndexedDB implementation
-   - Simulates object stores, indexes, and transactions
+We use Jest with the JSDOM environment as our single testing approach. This allows us to test browser-specific code, including DOM manipulation and interactions with browser APIs (which are mocked via our setup files).
 
-3. **annotation-viewer-test-setup.js**: UI-specific mocks
-   - Mocks `fetch`, `localStorage`, and `sessionStorage`
-   - Mocks URL handling functions
+To run all tests:
 
-## Testing Approaches
-
-### 1. Jest with JSDOM
-
-The primary testing approach uses Jest with the JSDOM environment:
-
-```
+```bash
 npm test
 ```
 
-### 2. Node.js Test Runner
-
-For tests that struggle with Jest's ES module handling, we use Node.js built-in test runner:
-
-```
-npm run test:readstatus
-```
-
-Benefits of Node.js test runner:
-
-- Native ES module support
-- No configuration needed
-- Simple assertion API
-
 ## Mocking Approach
 
-Since we're testing code that uses browser APIs not available in Jest's JSDOM environment, we needed to create custom mocks:
+Since we're testing code that uses browser APIs not available in Jest's Node environment (even with JSDOM simulating the DOM), we created custom mocks in `jest.setup.js`:
 
-### 1. Mock Implementation
+### 1. Mock Implementation (`createMockFn`)
 
-We created a custom mock function implementation (`createMockFn()`) that mimics Jest's mock functionality:
+We created a custom mock function implementation (`createMockFn()`) that mimics basic Jest mock functionality:
 
-- Tracks function calls
-- Supports chaining (mockReturnValue)
-- Maintains call history
+- Tracks function calls (`.mock.calls`).
+- Supports setting return values (`.mockReturnValue()`).
+- Supports custom implementations (`.mockImplementation()`).
+- Includes basic promise helpers (`.mockResolvedValue()`, `.mockRejectedValue()`).
+- Includes basic reset/restore capabilities.
 
-### 2. Global Jest API
+### 2. Global `jest` API
 
-We added a custom implementation of Jest's mocking API to the global object to ensure compatibility:
+We added a limited, custom implementation of Jest's mocking API to the global object in `jest.setup.js`:
 
-- `jest.fn()` - Creates mock functions
-- `jest.spyOn()` - Creates spies on object methods
-- `jest.useFakeTimers()` - Replaces setTimeout/clearTimeout
-- `jest.advanceTimersByTime()` - Simulates time passing
+- `jest.fn()`: Creates mock functions using `createMockFn`.
+- `jest.spyOn()`: Creates spies on object methods.
+- `jest.useFakeTimers() / jest.advanceTimersByTime()`: Basic timer mocking.
+- `jest.resetAllMocks() / jest.clearAllMocks() / jest.restoreAllMocks()`: Functions to manage the state of mocks created via `jest.fn` or `jest.spyOn`.
+
+_Note: This custom API might not have the full feature set of Jest's built-in API._
 
 ### 3. Browser API Mocks
 
-We mocked several browser APIs:
+Specific browser APIs are mocked globally in `jest.setup.js` or in the specialized setup files:
 
-- **IndexedDB** - Mocked the `open` method and related request objects
-- **FileReader** - Mocked the constructor and methods
-- **JSZip** - Mocked the library's API
+- **IndexedDB**: Basic mock in `jest.setup.js`, more detailed mock in `annotation-test-setup.js`.
+- **FileReader**: Mocked in `jest.setup.js`.
+- **JSZip**: Mocked in `jest.setup.js`.
+- **fetch, localStorage, sessionStorage**: Mocked in `annotation-viewer-test-setup.js`.
 
 ## Testing Database Operations
 
-Database testing presented the most challenges:
+Database testing (IndexedDB) presents challenges due to its asynchronous, event-based nature. Our approach involves:
 
-1. **Event-based API** - IndexedDB uses events (success, error, upgradeneeded) which required special handling
-2. **Promises** - Our module wraps these events in promises
-3. **Mock Consistency** - We needed to maintain consistent mock behavior across tests
-
-Our approach:
-
-- Create mock request objects with controlled behavior
-- Manually trigger events in tests to simulate API behavior
-- Reset mock state between tests
+1.  **Detailed Mocks**: Using the specialized mocks in `annotation-test-setup.js` or controlling the basic mocks from `jest.setup.js`.
+2.  **Controlled Events**: Mock implementations manually trigger `onsuccess` or `onerror` events within tests to simulate the asynchronous API behavior reliably.
+3.  **Promise Wrapping**: Testing the promise wrappers around the IndexedDB operations in our code.
+4.  **State Reset**: Ensuring mock IndexedDB state is reset between tests (often handled within `beforeEach` or `afterEach` blocks in the test files).
 
 ## Best Practices
 
-1. **Isolation is key** - Separating tests by dependency complexity makes debugging easier
-2. **Progressive enhancement** - Start with simple tests and add complexity gradually
-3. **Custom mocking** - Build our own mocking infrastructure for browser APIs when needed
-4. **Reset state** - Ensure mock objects are reset between tests
-5. **Test helpers** - Create test-specific helper methods in production code when necessary
-6. **Avoid database dependencies** - Use direct state manipulation for simple tests
-7. **Use appropriate test runner** - Choose Jest or Node.js test runner based on module complexity
+1.  **Isolation**: Keep tests focused on a single module or function.
+2.  **Setup Imports**: For tests needing specialized mocks (like `AnnotationStorage`, `AnnotationViewer`), import the specific setup file directly within the test file.
+3.  **Custom Mocking**: Use the global mocks from `jest.setup.js` for common browser APIs.
+4.  **Reset State**: Use `beforeEach` or `afterEach` with `jest.resetAllMocks()` or manual resets to ensure test independence.
+5.  **Test Helpers**: Consider creating test-specific helper methods in the production code if it significantly simplifies complex testing scenarios (e.g., direct state manipulation bypassing mocks).
+6.  **Avoid Database Dependencies**: For simple utility function tests, avoid involving database mocks if possible.
 
 ## Troubleshooting Common Issues
 
 ### "require is not defined" Error
 
-This error occurs when trying to use CommonJS in an ES module environment:
+This error occurs when trying to use CommonJS (`require`) in our ES module environment.
+**Solution:** Always use ES module `import`/`export` syntax.
 
-```
-SyntaxError: Cannot use import statement outside a module
-```
+### Mocking Issues (`TypeError: xxx is not a function`)
 
-**Solutions:**
-
-1. Convert CommonJS `require()` to ES module `import` syntax
-2. For Jest mocks with complex dependencies, use Node.js test runner instead
-3. Never use `{virtual: true}` option with `jest.mock()` in ES module context
+If a Jest matcher fails because a function is not recognized as a mock (e.g., `TypeError: received.getMockName is not a function`), it might indicate an incompatibility between Jest's expectations and our custom mock implementation in `jest.setup.js`.
+**Solutions:** - Double-check that the function being asserted _was_ created using `jest.fn()` or `jest.spyOn()` from our custom global API. - If the issue persists, consider simplifying the assertion (e.g., checking `mock.calls.length` instead of `toHaveBeenCalled`). - Ensure mocks are correctly reset in `beforeEach`.
 
 ### IndexedDB Mocking Issues
 
-If tests involving IndexedDB fail with unexpected behaviors:
+If tests involving IndexedDB fail unexpectedly:
 
-1. Check if the appropriate test setup file is being used
-2. Verify that mock state is properly reset between tests
-3. Consider adding test-specific helper methods to simplify testing
+1.  Check if the correct setup file is being imported (`annotation-test-setup.js` for `AnnotationStorage.test.js`).
+2.  Verify that mock state (e.g., mock database content, request handlers) is properly reset or configured in `beforeEach`.
+3.  Ensure asynchronous operations (mock `onsuccess`/`onerror` calls) are correctly awaited or handled in the test.
 
 ## Running Tests
 
-To run all Jest tests:
+To run the entire test suite:
 
-```
+```bash
 npm test
 ```
 
-To run specific test files with Jest:
+To run a specific test file:
 
-```
-npm test -- ZipFileManager.core.test.js
-```
-
-To run Node.js tests:
-
-```
-npm run test:readstatus
+```bash
+npm test -- path/to/your.test.js
+# or using npx directly:
+# npx jest path/to/your.test.js
 ```

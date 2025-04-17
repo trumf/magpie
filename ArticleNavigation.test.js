@@ -1,12 +1,14 @@
 /**
  * Test article navigation functionality
- * Uses Node.js test runner to validate next/previous article navigation
+ * Uses Jest test runner to validate next/previous article navigation
  */
 
-import {test} from "node:test";
-import assert from "node:assert";
+// Remove Node.js test runner imports
+// import {test} from "node:test";
+// import assert from "node:assert";
 
 // Create a mock for the navigation functions that we'll implement
+// Note: In a real scenario, this would likely be imported from its own module
 class ArticleNavigationHelper {
   constructor(files) {
     this.files = files || [];
@@ -112,14 +114,14 @@ class ArticleNavigationHelper {
   }
 }
 
-// Test cases
+// Test cases - using Jest syntax
 test("ArticleNavigationHelper should handle empty file list", () => {
   const navHelper = new ArticleNavigationHelper([]);
 
-  assert.strictEqual(navHelper.getNextArticle(), null);
-  assert.strictEqual(navHelper.getPreviousArticle(), null);
-  assert.strictEqual(navHelper.hasNextArticle(), false);
-  assert.strictEqual(navHelper.hasPreviousArticle(), false);
+  expect(navHelper.getNextArticle()).toBeNull();
+  expect(navHelper.getPreviousArticle()).toBeNull();
+  expect(navHelper.hasNextArticle()).toBe(false);
+  expect(navHelper.hasPreviousArticle()).toBe(false);
 });
 
 test("ArticleNavigationHelper should find correct next and previous articles", () => {
@@ -132,18 +134,18 @@ test("ArticleNavigationHelper should find correct next and previous articles", (
   const navHelper = new ArticleNavigationHelper(testFiles);
 
   // At first article (index 0)
-  assert.deepStrictEqual(navHelper.getNextArticle(), testFiles[1]);
-  assert.strictEqual(navHelper.getPreviousArticle(), null);
+  expect(navHelper.getNextArticle()).toEqual(testFiles[1]);
+  expect(navHelper.getPreviousArticle()).toBeNull();
 
   // Move to second article (index 1)
   navHelper.navigateToIndex(1);
-  assert.deepStrictEqual(navHelper.getNextArticle(), testFiles[2]);
-  assert.deepStrictEqual(navHelper.getPreviousArticle(), testFiles[0]);
+  expect(navHelper.getNextArticle()).toEqual(testFiles[2]);
+  expect(navHelper.getPreviousArticle()).toEqual(testFiles[0]);
 
   // Move to last article (index 2)
   navHelper.navigateToIndex(2);
-  assert.strictEqual(navHelper.getNextArticle(), null);
-  assert.deepStrictEqual(navHelper.getPreviousArticle(), testFiles[1]);
+  expect(navHelper.getNextArticle()).toBeNull();
+  expect(navHelper.getPreviousArticle()).toEqual(testFiles[1]);
 });
 
 test("ArticleNavigationHelper should navigate by path", () => {
@@ -157,13 +159,13 @@ test("ArticleNavigationHelper should navigate by path", () => {
 
   // Navigate to middle article by path
   const result = navHelper.setCurrentArticle("article2.md");
-  assert.strictEqual(result, true);
-  assert.strictEqual(navHelper.currentIndex, 1);
+  expect(result).toBe(true);
+  expect(navHelper.currentIndex).toBe(1);
 
   // Try to navigate to a non-existent article
   const badResult = navHelper.setCurrentArticle("nonexistent.md");
-  assert.strictEqual(badResult, false);
-  assert.strictEqual(navHelper.currentIndex, 1); // Index shouldn't change
+  expect(badResult).toBe(false);
+  expect(navHelper.currentIndex).toBe(1); // Index shouldn't change
 });
 
 test("ArticleNavigationHelper should move to next and previous articles", () => {
@@ -176,35 +178,35 @@ test("ArticleNavigationHelper should move to next and previous articles", () => 
   const navHelper = new ArticleNavigationHelper(testFiles);
 
   // Start at first article (index 0)
-  assert.strictEqual(navHelper.currentIndex, 0);
+  expect(navHelper.currentIndex).toBe(0);
 
   // Move to next article
   const nextArticle = navHelper.moveToNextArticle();
-  assert.deepStrictEqual(nextArticle, testFiles[1]);
-  assert.strictEqual(navHelper.currentIndex, 1);
+  expect(nextArticle).toEqual(testFiles[1]);
+  expect(navHelper.currentIndex).toBe(1);
 
   // Move to next article again
   navHelper.moveToNextArticle();
-  assert.strictEqual(navHelper.currentIndex, 2);
+  expect(navHelper.currentIndex).toBe(2);
 
   // Try to move beyond the end
   const beyondEnd = navHelper.moveToNextArticle();
-  assert.strictEqual(beyondEnd, null);
-  assert.strictEqual(navHelper.currentIndex, 2); // Should stay at the end
+  expect(beyondEnd).toBeNull();
+  expect(navHelper.currentIndex).toBe(2); // Should stay at the end
 
   // Move back to previous
   const prevArticle = navHelper.moveToPreviousArticle();
-  assert.deepStrictEqual(prevArticle, testFiles[1]);
-  assert.strictEqual(navHelper.currentIndex, 1);
+  expect(prevArticle).toEqual(testFiles[1]);
+  expect(navHelper.currentIndex).toBe(1);
 
   // Move to previous again
   navHelper.moveToPreviousArticle();
-  assert.strictEqual(navHelper.currentIndex, 0);
+  expect(navHelper.currentIndex).toBe(0);
 
   // Try to move before the beginning
   const beforeBeginning = navHelper.moveToPreviousArticle();
-  assert.strictEqual(beforeBeginning, null);
-  assert.strictEqual(navHelper.currentIndex, 0); // Should stay at the beginning
+  expect(beforeBeginning).toBeNull();
+  expect(navHelper.currentIndex).toBe(0); // Should stay at the beginning
 });
 
 test("ArticleNavigationHelper should correctly report hasNext and hasPrevious", () => {
@@ -217,19 +219,21 @@ test("ArticleNavigationHelper should correctly report hasNext and hasPrevious", 
   const navHelper = new ArticleNavigationHelper(testFiles);
 
   // At first article
-  assert.strictEqual(navHelper.hasNextArticle(), true);
-  assert.strictEqual(navHelper.hasPreviousArticle(), false);
+  expect(navHelper.hasNextArticle()).toBe(true);
+  expect(navHelper.hasPreviousArticle()).toBe(false);
 
   // At middle article
   navHelper.navigateToIndex(1);
-  assert.strictEqual(navHelper.hasNextArticle(), true);
-  assert.strictEqual(navHelper.hasPreviousArticle(), true);
+  expect(navHelper.hasNextArticle()).toBe(true);
+  expect(navHelper.hasPreviousArticle()).toBe(true);
 
   // At last article
   navHelper.navigateToIndex(2);
-  assert.strictEqual(navHelper.hasNextArticle(), false);
-  assert.strictEqual(navHelper.hasPreviousArticle(), true);
+  expect(navHelper.hasNextArticle()).toBe(false);
+  expect(navHelper.hasPreviousArticle()).toBe(true);
 });
 
 // Export the ArticleNavigationHelper class so we can use it in our implementation
+// Note: This export might not be needed if the class is defined elsewhere
+// or if these tests are solely for this file's internal helper.
 export {ArticleNavigationHelper};
