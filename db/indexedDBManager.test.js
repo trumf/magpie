@@ -13,6 +13,16 @@ import {
   deleteZipFile,
 } from "./indexedDBManager.js";
 
+// Helper to create mock IDBRequest
+const createMockIdbRequest = (resultValue = null) => {
+  const req = {result: resultValue, onsuccess: null, onerror: null};
+  // Simulate async success by default
+  setTimeout(() => {
+    if (req.onsuccess) req.onsuccess({target: req});
+  }, 0);
+  return req;
+};
+
 // Mock IndexedDB implementations
 global.indexedDB = {
   open: jest.fn(),
@@ -40,16 +50,6 @@ describe("IndexedDB Manager Module", () => {
   beforeEach(() => {
     // Reset all mocks
     jest.resetAllMocks();
-
-    // Helper to create mock IDBRequest
-    const createMockIdbRequest = (resultValue = null) => {
-      const req = {result: resultValue, onsuccess: null, onerror: null};
-      // Simulate async success by default
-      setTimeout(() => {
-        if (req.onsuccess) req.onsuccess({target: req});
-      }, 0);
-      return req;
-    };
 
     // Setup mock indexedDB database
     mockObjectStore = {
@@ -86,12 +86,20 @@ describe("IndexedDB Manager Module", () => {
     global.indexedDB.open.mockReturnValue(mockRequest);
   });
 
+  // Add afterEach for cleanup consistency
+  afterEach(() => {
+    jest.clearAllMocks();
+    // No need to reset modules or timers here usually, relies on global setup
+  });
+
   describe("initIndexedDB", () => {
     it("should open the database with correct parameters", async () => {
       const initPromise = initIndexedDB();
 
       // Simulate successful database open
       mockRequest.onsuccess({target: mockRequest});
+      // Run timers to execute the async callback simulation
+      jest.runAllTimers();
 
       await initPromise;
 
@@ -103,9 +111,12 @@ describe("IndexedDB Manager Module", () => {
 
       // Simulate upgrade needed event
       mockRequest.onupgradeneeded({target: mockRequest});
+      // We don't need to run timers here as onupgradeneeded is synchronous in the spec
 
       // Then simulate successful opening
       mockRequest.onsuccess({target: mockRequest});
+      // Run timers to execute the async callback simulation
+      jest.runAllTimers();
 
       await initPromise;
 
@@ -124,6 +135,8 @@ describe("IndexedDB Manager Module", () => {
           error: new Error("Test error"),
         },
       });
+      // Run timers to execute the async callback simulation
+      jest.runAllTimers();
 
       await expect(initPromise).rejects.toThrow("Test error");
     });
@@ -134,10 +147,20 @@ describe("IndexedDB Manager Module", () => {
       // Initialize DB first (normally handled by saveZipData)
       const dbPromise = initIndexedDB();
       mockRequest.onsuccess({target: mockRequest});
+      jest.runAllTimers(); // Run timers for init
       const db = await dbPromise;
 
+      // Mock the add operation's async completion
+      mockObjectStore.add.mockImplementationOnce(() => {
+        const req = createMockIdbRequest(1);
+        // No need for extra timer run here if createMockIdbRequest handles it
+        return req;
+      });
+
       // Now test saveZipData
-      const id = await saveZipData(sampleZipData, {}, db);
+      const savePromise = saveZipData(sampleZipData, {}, db);
+      jest.runAllTimers(); // Run timers for the add operation's callback
+      const id = await savePromise;
 
       expect(id).toBe(1);
       expect(mockDb.transaction).toHaveBeenCalledWith(
@@ -155,19 +178,23 @@ describe("IndexedDB Manager Module", () => {
       // Initialize DB first
       const dbPromise = initIndexedDB();
       mockRequest.onsuccess({target: mockRequest});
+      jest.runAllTimers(); // Run timers for init
       const db = await dbPromise;
 
       // Configure the default mock request to return specific data for this test
       mockObjectStore.getAll.mockImplementationOnce(() => {
         const req = {result: mockData, onsuccess: null, onerror: null};
         setTimeout(() => {
+          // Using setTimeout directly inside test mock
           if (req.onsuccess) req.onsuccess({target: req});
         }, 0);
         return req;
       });
 
       // Test getAllZipFiles
-      const result = await getAllZipFiles({}, db);
+      const getAllPromise = getAllZipFiles({}, db);
+      jest.runAllTimers(); // Run timers for the getAll operation's callback
+      const result = await getAllPromise;
 
       expect(result).toEqual(mockData);
       expect(mockDb.transaction).toHaveBeenCalledWith(["zipFiles"], "readonly");
@@ -183,6 +210,7 @@ describe("IndexedDB Manager Module", () => {
       // Initialize DB first
       const dbPromise = initIndexedDB();
       mockRequest.onsuccess({target: mockRequest});
+      jest.runAllTimers(); // Run timers for init
       const db = await dbPromise;
 
       // Configure the default mock request to return specific data for this test
@@ -193,13 +221,16 @@ describe("IndexedDB Manager Module", () => {
           onerror: null,
         };
         setTimeout(() => {
+          // Using setTimeout directly inside test mock
           if (req.onsuccess) req.onsuccess({target: req});
         }, 0);
         return req;
       });
 
       // Test getZipFileById
-      const result = await getZipFileById(zipId, {}, db);
+      const getPromise = getZipFileById(zipId, {}, db);
+      jest.runAllTimers(); // Run timers for the get operation's callback
+      const result = await getPromise;
 
       expect(result).toEqual(retrievedData);
       expect(mockDb.transaction).toHaveBeenCalledWith(["zipFiles"], "readonly");
@@ -212,19 +243,23 @@ describe("IndexedDB Manager Module", () => {
       // Initialize DB first
       const dbPromise = initIndexedDB();
       mockRequest.onsuccess({target: mockRequest});
+      jest.runAllTimers(); // Run timers for init
       const db = await dbPromise;
 
       // Configure the default mock request to return undefined for this test
       mockObjectStore.get.mockImplementationOnce(() => {
         const req = {result: undefined, onsuccess: null, onerror: null};
         setTimeout(() => {
+          // Using setTimeout directly inside test mock
           if (req.onsuccess) req.onsuccess({target: req});
         }, 0);
         return req;
       });
 
       // Test getZipFileById with non-existent ID
-      await expect(getZipFileById(zipId, {}, db)).rejects.toThrow(
+      const getPromise = getZipFileById(zipId, {}, db);
+      jest.runAllTimers(); // Run timers for the get operation's callback
+      await expect(getPromise).rejects.toThrow(
         `ZIP file with ID ${zipId} not found`
       );
     });
@@ -237,19 +272,23 @@ describe("IndexedDB Manager Module", () => {
       // Initialize DB first
       const dbPromise = initIndexedDB();
       mockRequest.onsuccess({target: mockRequest});
+      jest.runAllTimers(); // Run timers for init
       const db = await dbPromise;
 
       // Configure the default mock request if needed (e.g., return specific ID)
       mockObjectStore.put.mockImplementationOnce((data) => {
         const req = {result: data.id, onsuccess: null, onerror: null};
         setTimeout(() => {
+          // Using setTimeout directly inside test mock
           if (req.onsuccess) req.onsuccess({target: req});
         }, 0);
         return req;
       });
 
       // Test updateZipFile
-      const result = await updateZipFile(zipData, {}, db);
+      const updatePromise = updateZipFile(zipData, {}, db);
+      jest.runAllTimers(); // Run timers for the put operation's callback
+      const result = await updatePromise;
 
       expect(result).toBe(1);
       expect(mockDb.transaction).toHaveBeenCalledWith(
@@ -267,10 +306,19 @@ describe("IndexedDB Manager Module", () => {
       // Initialize DB first
       const dbPromise = initIndexedDB();
       mockRequest.onsuccess({target: mockRequest});
+      jest.runAllTimers(); // Run timers for init
       const db = await dbPromise;
 
+      // Configure mock for delete
+      mockObjectStore.delete.mockImplementationOnce(() => {
+        const req = createMockIdbRequest(); // Use helper
+        return req;
+      });
+
       // Test deleteZipFile
-      await deleteZipFile(zipId, {}, db);
+      const deletePromise = deleteZipFile(zipId, {}, db);
+      jest.runAllTimers(); // Run timers for the delete operation's callback
+      await deletePromise;
 
       expect(mockDb.transaction).toHaveBeenCalledWith(
         ["zipFiles"],
@@ -285,10 +333,19 @@ describe("IndexedDB Manager Module", () => {
       // Initialize DB first
       const dbPromise = initIndexedDB();
       mockRequest.onsuccess({target: mockRequest});
+      jest.runAllTimers(); // Run timers for init
       const db = await dbPromise;
 
+      // Configure mock for clear
+      mockObjectStore.clear.mockImplementationOnce(() => {
+        const req = createMockIdbRequest(); // Use helper
+        return req;
+      });
+
       // Test clearZipFiles
-      await clearZipFiles({}, db);
+      const clearPromise = clearZipFiles({}, db);
+      jest.runAllTimers(); // Run timers for the clear operation's callback
+      await clearPromise;
 
       expect(mockDb.transaction).toHaveBeenCalledWith(
         ["zipFiles"],
