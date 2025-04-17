@@ -691,6 +691,9 @@
             );
             // Fade back in AFTER rendering and annotation init
             markdownContentElement.style.opacity = "1";
+
+            // Scroll window to top after content is rendered and visible
+            window.scrollTo(0, 0);
           }, 100); // Small delay to ensure rendering is complete
 
           // Mark the file as read

@@ -468,4 +468,48 @@ export class AnnotationStorage {
       return 0;
     }
   }
+
+  /**
+   * Retrieve all unique tags from annotations.
+   * @returns {Promise<string[]>} A promise that resolves with an array of unique tags.
+   */
+  async getAllTags() {
+    return new Promise(async (resolve, reject) => {
+      if (!this.db) {
+        await this.initIndexedDB(); // Ensure DB is initialized
+      }
+
+      if (!this.db) {
+        return reject(new Error("Database not initialized."));
+      }
+
+      const transaction = this.db.transaction(["annotations"], "readonly");
+      const store = transaction.objectStore("annotations");
+      const request = store.getAll();
+
+      request.onerror = (event) => {
+        console.error(
+          "Error fetching annotations for tags:",
+          event.target.error
+        );
+        reject(event.target.error);
+      };
+
+      request.onsuccess = (event) => {
+        const annotations = event.target.result;
+        const uniqueTags = new Set();
+        annotations.forEach((annotation) => {
+          if (annotation.tags && Array.isArray(annotation.tags)) {
+            annotation.tags.forEach((tag) => uniqueTags.add(tag));
+          }
+        });
+        resolve(Array.from(uniqueTags).sort()); // Return sorted unique tags
+      };
+    });
+  }
+
+  // Close the database connection (optional, depends on app lifecycle)
+  close() {
+    // ... existing code ...
+  }
 }
