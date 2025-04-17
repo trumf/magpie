@@ -221,72 +221,27 @@ global.JSZip = class {
   }
 };
 
-// 3) A minimal IndexedDB stub (can be overridden by annotation-test-setup.js)
-// Ensure this doesn't conflict if annotation-test-setup always runs after this.
-// If tests run *without* annotation-test-setup, they'll get this basic mock.
-if (!global.indexedDB?.isMock) {
-  // Avoid overwriting the detailed mock
-  global.indexedDB = {
-    open: jest.fn().mockImplementation((name, version) => {
-      // Basic mock request structure
-      const request = {
-        onsuccess: null,
-        onerror: null,
-        onupgradeneeded: null,
-        result: {
-          // Mock DB structure
-          close: jest.fn(),
-          objectStoreNames: {contains: jest.fn().mockReturnValue(false)},
-          createObjectStore: jest.fn().mockReturnValue({
-            // Mock store structure
-            createIndex: jest.fn(),
-            get: jest.fn().mockReturnValue({onsuccess: null, onerror: null}),
-            put: jest.fn().mockReturnValue({onsuccess: null, onerror: null}),
-            delete: jest.fn().mockReturnValue({onsuccess: null, onerror: null}),
-            getAll: jest
-              .fn()
-              .mockReturnValue({onsuccess: null, onerror: null, result: []}),
-            clear: jest.fn().mockReturnValue({onsuccess: null, onerror: null}),
-          }),
-          transaction: jest.fn().mockReturnValue({
-            // Mock transaction
-            objectStore: jest.fn().mockReturnThis(), // Return the mock store structure above
-            oncomplete: null,
-            onerror: null,
-          }),
-        },
-        readyState: "done",
-      };
+// 3) A minimal IndexedDB stub (the detailed mock is in annotation-test-setup.js)
+// This basic stub prevents errors in tests that don't import the detailed mock.
+global.indexedDB = {
+  open: jest.fn().mockReturnValue({
+    // Return a minimal request object structure
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+    result: null, // No detailed mock DB needed here
+    readyState: "done",
+  }),
+  deleteDatabase: jest.fn().mockReturnValue({
+    onsuccess: null,
+    onerror: null,
+  }),
+  // Add a flag to identify this basic mock (optional)
+  isMock: true,
+  isBasicGlobalMock: true,
+};
 
-      // Fix transaction().objectStore() to return the actual mock store
-      const mockStore = request.result.createObjectStore(); // Get the mock store instance
-      request.result.transaction = jest.fn().mockReturnValue({
-        objectStore: jest.fn().mockReturnValue(mockStore),
-        oncomplete: null,
-        onerror: null,
-      });
-
-      // Simulate async success for the open call
-      setTimeout(() => {
-        request.onsuccess?.({target: request});
-      }, 0);
-      return request;
-    }),
-    deleteDatabase: jest.fn().mockImplementation((name) => {
-      const request = {onsuccess: null, onerror: null};
-      setTimeout(() => {
-        request.onsuccess?.({target: {result: undefined}});
-      }, 0);
-      return request;
-    }),
-    // Add a flag to identify this basic mock
-    isMock: true,
-    isBasicMock: true,
-  };
-}
-
-// 4) Clean up mocks after each test
-// This replaces the old custom reset functions
+// 4) Clean up mocks and timers after each test
 afterEach(() => {
   jest.clearAllMocks();
   jest.clearAllTimers(); // Clear timers managed by jest.useFakeTimers()
