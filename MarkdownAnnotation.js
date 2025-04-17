@@ -16,6 +16,7 @@ export const AnnotationSystem = (function () {
   let currentFilePath = null;
   let isAnnotationMode = false;
   let mobileAnnotationBtn = null;
+  let allTagsCache = []; // Cache for tags to reduce DB lookups
 
   // Check if the client is using a mobile device
   function isMobileDevice() {
@@ -442,7 +443,16 @@ export const AnnotationSystem = (function () {
       });
       textarea.placeholder = "Enter your annotation here...";
 
-      // Tags input field
+      // --- Autocomplete Tags ---
+      const tagsContainer = createAnnotationElement(
+        "div",
+        "tags-input-container",
+        {
+          position: "relative", // Needed for absolute positioning of dropdown
+          marginBottom: "15px",
+        }
+      );
+
       const tagsLabel = createAnnotationElement("div", null, {
         marginBottom: "5px",
         fontWeight: "bold",
@@ -451,12 +461,22 @@ export const AnnotationSystem = (function () {
 
       const tagsInput = createAnnotationElement("input", null, {
         width: "100%",
-        marginBottom: "15px",
         padding: "8px",
         boxSizing: "border-box",
       });
       tagsInput.placeholder = "important, question, todo...";
       tagsInput.type = "text";
+      tagsInput.setAttribute("autocomplete", "off");
+      tagsInput.setAttribute("autocorrect", "off");
+      tagsInput.setAttribute("autocapitalize", "off");
+      tagsInput.setAttribute("spellcheck", "false");
+
+      tagsContainer.appendChild(tagsLabel);
+      tagsContainer.appendChild(tagsInput);
+
+      // Add autocomplete logic (desktop version)
+      this._setupTagAutocomplete(tagsInput, tagsContainer, false);
+      // --- End Autocomplete Tags ---
 
       // Buttons
       const buttonContainer = createAnnotationElement("div", null, {
@@ -514,13 +534,141 @@ export const AnnotationSystem = (function () {
       // Add everything to the form
       form.appendChild(selectedTextDisplay); // Use the modified display element
       form.appendChild(textarea);
-      form.appendChild(tagsLabel);
-      form.appendChild(tagsInput);
+      form.appendChild(tagsContainer); // Add the container with label and input
       form.appendChild(buttonContainer);
       document.body.appendChild(form);
 
       // Focus the textarea
       textarea.focus();
+    },
+
+    /**
+     * Sets up tag autocomplete functionality for an input field.
+     * @param {HTMLInputElement} inputElement - The input field for tags.
+     * @param {HTMLElement} containerElement - The container holding the input and dropdown.
+     * @param {boolean} isMobile - Flag indicating if it's the mobile version (dropdown above).
+     */
+    _setupTagAutocomplete: function (inputElement, containerElement, isMobile) {
+      let autocompleteList =
+        containerElement.querySelector(".autocomplete-list");
+      if (!autocompleteList) {
+        autocompleteList = createAnnotationElement("div", "autocomplete-list", {
+          position: "absolute",
+          border: "1px solid #ccc",
+          background: "white",
+          zIndex: "1002", // Above form
+          maxHeight: "150px",
+          overflowY: "auto",
+          width: "100%", // Match input width
+          boxSizing: "border-box",
+          display: "none", // Initially hidden
+          boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
+        });
+        if (isMobile) {
+          autocompleteList.style.bottom = "100%"; // Position above input
+          autocompleteList.style.marginBottom = "2px";
+        } else {
+          autocompleteList.style.top = "100%"; // Position below input
+          autocompleteList.style.marginTop = "2px";
+        }
+        containerElement.appendChild(autocompleteList); // Append to container
+      }
+
+      const renderSuggestions = (suggestions) => {
+        autocompleteList.innerHTML = ""; // Clear previous suggestions
+        if (suggestions.length === 0) {
+          autocompleteList.style.display = "none";
+          return;
+        }
+
+        suggestions.forEach((tag) => {
+          const item = createAnnotationElement("div", "autocomplete-item", {
+            padding: "8px",
+            cursor: "pointer",
+          });
+          item.textContent = tag;
+          item.addEventListener("mouseenter", () => {
+            item.style.backgroundColor = "#f0f0f0";
+          });
+          item.addEventListener("mouseleave", () => {
+            item.style.backgroundColor = "white";
+          });
+          item.addEventListener("mousedown", (e) => {
+            // Use mousedown to fire before blur
+            e.preventDefault(); // Prevent input from losing focus
+            const currentValue = inputElement.value;
+            const parts = currentValue.split(",");
+            const lastPart = parts.pop(); // Get the part being typed
+            const newValue =
+              parts.join(",") + (parts.length > 0 ? "," : "") + tag + ", ";
+            inputElement.value = newValue;
+            autocompleteList.style.display = "none";
+            inputElement.focus(); // Keep focus on input
+          });
+          autocompleteList.appendChild(item);
+        });
+
+        autocompleteList.style.display = "block";
+      };
+
+      inputElement.addEventListener("input", async () => {
+        const currentValue = inputElement.value;
+        const parts = currentValue.split(",");
+        const currentTag = parts[parts.length - 1].trim().toLowerCase();
+
+        if (currentTag === "") {
+          autocompleteList.style.display = "none";
+          return;
+        }
+
+        // Use cache or fetch tags
+        let tagsToSuggest = [];
+        if (allTagsCache.length === 0) {
+          try {
+            await initStorage();
+            allTagsCache = await storage.getAllTags();
+          } catch (error) {
+            console.error("Failed to fetch tags:", error);
+            allTagsCache = []; // Reset cache on error
+          }
+        }
+
+        tagsToSuggest = allTagsCache.filter((tag) =>
+          tag.toLowerCase().includes(currentTag)
+        );
+
+        // Exclude tags already fully entered in the input
+        const existingTags = currentValue
+          .split(",")
+          .map((t) => t.trim().toLowerCase());
+        tagsToSuggest = tagsToSuggest.filter(
+          (suggestion) => !existingTags.includes(suggestion.toLowerCase())
+        );
+
+        renderSuggestions(tagsToSuggest.slice(0, 10)); // Limit suggestions
+      });
+
+      // Hide dropdown when clicking outside
+      const clickOutsideHandler = (event) => {
+        if (!containerElement.contains(event.target)) {
+          autocompleteList.style.display = "none";
+        }
+      };
+
+      // Use focusout/blur with relatedTarget check to handle clicks inside the list
+      inputElement.addEventListener("blur", (event) => {
+        // Delay hiding to allow click event on suggestions to fire
+        setTimeout(() => {
+          if (!autocompleteList.contains(document.activeElement)) {
+            autocompleteList.style.display = "none";
+          }
+        }, 150);
+      });
+      // Removed document listener to avoid conflicts, using blur instead
+      // document.addEventListener('click', clickOutsideHandler, true);
+
+      // Cleanup function if needed (e.g., if form is removed dynamically)
+      // return () => document.removeEventListener('click', clickOutsideHandler, true);
     },
 
     /**
@@ -1373,6 +1521,26 @@ export const AnnotationSystem = (function () {
       });
       tagsInput.placeholder = "important, question, todo...";
       tagsInput.type = "text";
+      tagsInput.setAttribute("autocomplete", "off");
+      tagsInput.setAttribute("autocorrect", "off");
+      tagsInput.setAttribute("autocapitalize", "off");
+      tagsInput.setAttribute("spellcheck", "false");
+
+      // --- Autocomplete Tags ---
+      const tagsContainer = createAnnotationElement(
+        "div",
+        "tags-input-container",
+        {
+          position: "relative", // Needed for absolute positioning of dropdown
+          marginBottom: "15px",
+        }
+      );
+      tagsContainer.appendChild(tagsLabel);
+      tagsContainer.appendChild(tagsInput);
+
+      // Add autocomplete logic (mobile version - dropdown above)
+      this._setupTagAutocomplete(tagsInput, tagsContainer, true);
+      // --- End Autocomplete Tags ---
 
       // Buttons container
       const buttonContainer = document.createElement("div");
@@ -1457,8 +1625,7 @@ export const AnnotationSystem = (function () {
 
       form.appendChild(selectedTextDisplay);
       form.appendChild(textarea);
-      form.appendChild(tagsLabel);
-      form.appendChild(tagsInput);
+      form.appendChild(tagsContainer); // Add container for tags
       form.appendChild(buttonContainer);
 
       // Add to document
