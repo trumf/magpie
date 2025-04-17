@@ -227,3 +227,62 @@ global.JSZip = function () {
 
   return jsZipInstance;
 };
+
+// jest.setup.js
+// ---------------------------
+// 1) Enable jest's built-in fake-timer API
+jest.useFakeTimers();
+
+// 2) Polyfill browser globals that JSDOM doesn't provide:
+
+// Mock FileReader
+global.FileReader = class {
+  constructor() {
+    this.onload = null;
+    this.onerror = null;
+    this.result = new ArrayBuffer(8); // Keep existing behavior
+    // Define readAsArrayBuffer as a Jest mock function
+    this.readAsArrayBuffer = jest.fn((_file) => {
+      // Simulate async loading completion - tests can trigger this manually if needed
+      // or we can add a default behavior later.
+      // Example: setTimeout(() => this.onload?.({ target: { result: this.result } }), 0);
+    });
+  }
+};
+
+// Mock JSZip
+global.JSZip = class {
+  constructor() {
+    this.loadAsync = jest.fn().mockResolvedValue({
+      // Provide a default mock implementation returning an empty files object
+      files: {},
+    });
+    // Add other JSZip methods as needed, mocking them with jest.fn()
+  }
+};
+
+// 3) A minimal IndexedDB stub (the detailed mock is in annotation-test-setup.js)
+// This basic stub prevents errors in tests that don't import the detailed mock.
+global.indexedDB = {
+  open: jest.fn().mockReturnValue({
+    // Return a minimal request object structure
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+    result: null, // No detailed mock DB needed here
+    readyState: "done",
+  }),
+  deleteDatabase: jest.fn().mockReturnValue({
+    onsuccess: null,
+    onerror: null,
+  }),
+  // Add a flag to identify this basic mock (optional)
+  isMock: true,
+  isBasicGlobalMock: true,
+};
+
+// 4) Clean up mocks and timers after each test
+afterEach(() => {
+  jest.clearAllMocks();
+  jest.clearAllTimers(); // Clear timers managed by jest.useFakeTimers()
+});

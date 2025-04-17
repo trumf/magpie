@@ -1,6 +1,6 @@
 import {AnnotationViewer} from "./AnnotationViewer.js";
 import {jest} from "@jest/globals";
-import "./annotation-test-setup.js";
+import "./annotation-viewer-test-setup.js";
 
 // Create mock data for tests
 const mockAnnotations = [

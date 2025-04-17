@@ -63,7 +63,10 @@ describe("AnnotationStorage", () => {
 
     // Initialize the database
     await storage.initIndexedDB();
-  });
+    // Run pending timers from mock IndexedDB setup
+    jest.runAllTimers(); // First run for outer timer
+    jest.runAllTimers(); // Second run for potential nested timer (e.g., after upgrade)
+  }, 10000); // Set timeout to 10 seconds
 
   afterEach(async () => {
     // Clean up after tests
