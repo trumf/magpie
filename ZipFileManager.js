@@ -6,7 +6,7 @@
  */
 
 // Import headline extraction
-import {extractDisplayName} from "./HeadlineExtraction.js";
+// import {extractDisplayName} from "./HeadlineExtraction.js";
 
 // Import IndexedDB manager functions
 import {
@@ -18,6 +18,12 @@ import {
   clearZipFiles,
   deleteZipFile,
 } from "./db/indexedDBManager.js";
+
+// Import the parser
+import {parseZipFile} from "./parser/zipParser.js";
+
+// Import view functions
+import {showStatus} from "./view/htmlGenerator.js";
 
 // Default configuration
 const DEFAULT_CONFIG = {
@@ -52,32 +58,14 @@ export class ZipFileManager {
       );
       return this.db;
     } catch (error) {
-      this.showStatus("error", `Failed to open database: ${error.message}`);
+      showStatus(
+        "error",
+        `Failed to open database: ${error.message}`,
+        this.statusCallback,
+        null,
+        this.config.statusDisplayDuration
+      );
       throw error;
-    }
-  }
-
-  /**
-   * Display status message
-   * @param {string} type - The type of status (success, error, info)
-   * @param {string} message - The message to display
-   * @param {HTMLElement} element - Optional DOM element to display status in
-   */
-  showStatus(type, message, element = null) {
-    // If a status callback is provided, use it
-    if (this.statusCallback) {
-      this.statusCallback(type, message);
-      return;
-    }
-
-    // If an element is provided, update its innerHTML
-    if (element) {
-      element.innerHTML = `<div class="status ${type}">${message}</div>`;
-
-      // Clear status after specified duration
-      setTimeout(() => {
-        element.innerHTML = "";
-      }, this.config.statusDisplayDuration);
     }
   }
 
@@ -91,89 +79,27 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+    try {
+      // Parse the zip file using the dedicated parser
+      const zipData = await parseZipFile(file);
 
-      reader.onload = async (event) => {
-        try {
-          // Make sure JSZip is available
-          if (typeof JSZip !== "function") {
-            throw new Error(
-              "JSZip library not found. Please include JSZip in your project."
-            );
-          }
-
-          const arrayBuffer = event.target.result;
-          const jszip = new JSZip();
-          const zip = await jszip.loadAsync(arrayBuffer);
-
-          // Process ZIP contents
-          const files = [];
-          let totalSize = 0;
-
-          for (const [path, zipEntry] of Object.entries(zip.files)) {
-            if (!zipEntry.dir) {
-              const content = await zipEntry.async("string");
-
-              // Extract display name for markdown files
-              let displayName = path;
-              if (
-                path.toLowerCase().endsWith(".md") ||
-                path.toLowerCase().endsWith(".markdown")
-              ) {
-                displayName = extractDisplayName(content, path);
-              }
-
-              files.push({
-                path,
-                displayName,
-                size: content.length,
-                content: content,
-              });
-              totalSize += content.length;
-            }
-          }
-
-          // Create ZIP data object
-          const zipData = {
-            name: file.name,
-            size: file.size,
-            timestamp: new Date().toISOString(),
-            fileCount: files.length,
-            totalSize,
-            files,
-          };
-
-          try {
-            // Save to IndexedDB using the database manager module
-            const id = await saveZipData(
-              zipData,
-              {
-                dbName: this.config.dbName,
-                dbVersion: this.config.dbVersion,
-                storeName: this.config.storeName,
-              },
-              this.db
-            );
-            console.log("Zip file saved successfully");
-            resolve(id);
-          } catch (dbError) {
-            console.error("Error saving zip file:", dbError);
-            reject(dbError);
-          }
-        } catch (error) {
-          console.error("Error processing zip file:", error);
-          reject(error);
-        }
-      };
-
-      reader.onerror = (event) => {
-        console.error("Error reading file:", event.target.error);
-        reject(event.target.error);
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
+      // Save the extracted data to IndexedDB
+      const id = await saveZipData(
+        zipData,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
+      );
+      console.log("Zip file saved successfully with ID:", id);
+      return id;
+    } catch (error) {
+      console.error("Error saving zip file:", error);
+      // Propagate the error so the caller knows something went wrong
+      throw error;
+    }
   }
 
   /**
@@ -274,75 +200,6 @@ export class ZipFileManager {
       console.error("Error deleting zip file:", error);
       throw error;
     }
-  }
-
-  /**
-   * Format file size in human-readable format
-   * @param {number} bytes - Size in bytes
-   * @returns {string} Formatted size (e.g., "1.23 KB")
-   */
-  formatSize(bytes) {
-    if (bytes < 1024) {
-      return bytes + " bytes";
-    } else if (bytes < 1024 * 1024) {
-      return (bytes / 1024).toFixed(2) + " KB";
-    } else {
-      return (bytes / (1024 * 1024)).toFixed(2) + " MB";
-    }
-  }
-
-  /**
-   * Generate HTML content to display ZIP files
-   * @param {Array} zipFiles - Array of ZIP file objects
-   * @returns {string} HTML content
-   */
-  generateZipFilesHtml(zipFiles) {
-    if (zipFiles.length === 0) {
-      return "<p>No ZIP files stored in the database.</p>";
-    }
-
-    let html = "<table>";
-    html +=
-      "<tr><th>ID</th><th>Name</th><th>Size</th><th>Files</th><th>Timestamp</th></tr>";
-
-    for (const zipFile of zipFiles) {
-      html += `
-        <tr>
-          <td>${zipFile.id}</td>
-          <td>${zipFile.name}</td>
-          <td>${this.formatSize(zipFile.size)}</td>
-          <td>${zipFile.fileCount}</td>
-          <td>${new Date(zipFile.timestamp).toLocaleString()}</td>
-        </tr>
-      `;
-    }
-
-    html += "</table>";
-
-    // Add file details for the most recent upload
-    const mostRecent = zipFiles[zipFiles.length - 1];
-    if (mostRecent) {
-      html += `<h3>Content of ${mostRecent.name} (showing ${mostRecent.files.length} files)</h3>`;
-      html += "<pre>";
-
-      mostRecent.files.forEach((file, index) => {
-        if (index < 10) {
-          // Limit to first 10 files to avoid overloading the UI
-          html += `<strong>${file.path}</strong> (${this.formatSize(
-            file.size
-          )}):\n`;
-          html += `${file.content}\n\n`;
-        }
-      });
-
-      if (mostRecent.files.length > 10) {
-        html += `... and ${mostRecent.files.length - 10} more files`;
-      }
-
-      html += "</pre>";
-    }
-
-    return html;
   }
 
   /**

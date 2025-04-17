@@ -96,6 +96,36 @@ Database testing (IndexedDB) presents challenges due to its asynchronous, event-
 5.  **Test Helpers**: Consider creating test-specific helper functions if it significantly simplifies complex testing scenarios.
 6.  **Avoid Database Dependencies**: For simple utility function tests, avoid involving database mocks if possible.
 
+## Module-Specific Testing Notes
+
+### `indexedDBManager.js`
+
+- Tests are located in `db/indexedDBManager.test.js`.
+- Uses Jest mocks for the IndexedDB API (`global.indexedDB`, `IDBRequest`, etc.) to simulate database operations without needing a real browser environment.
+- Focuses on verifying that the correct IndexedDB methods are called with the right parameters and that callbacks (`onsuccess`, `onerror`) are handled properly.
+
+### `parser/zipParser.js`
+
+- Tests are located in `parser/zipParser.test.js`.
+- Uses Jest mocks for browser APIs (`FileReader`) and external libraries (`JSZip`, `HeadlineExtraction.js`).
+- Simulates `FileReader` events (`onload`, `onerror`) and `JSZip` interactions (`loadAsync`, `file.async`).
+- Focuses on verifying the structure of the parsed data object and correct handling of different file types (markdown vs. others), directories, and potential errors during parsing.
+
+### `ZipFileManager.js` (Core Logic & Facade)
+
+- Core utility tests (like `formatSize`, `generateZipFilesHtml`) are in `ZipFileManager.core.test.js`.
+- Read/unread status logic tests (which don't need DB interaction) are in `ZipFileManager.ReadStatus.test.js`.
+- Sorting logic tests are in `ZipFileManager.sort.test.js`.
+- These tests primarily focus on the synchronous logic within the facade, often using simple mock data structures.
+- Tests involving interactions with the parser or DB manager rely on those modules being tested thoroughly in isolation.
+
+### `view/htmlGenerator.js`
+
+- Tests are located in `view/htmlGenerator.test.js`.
+- Contains functions related to view logic: `formatSize`, `generateZipFilesHtml`, and `showStatus`.
+- Tests use Jest matchers and fake timers for time-dependent functions (like `showStatus`).
+- Verifies HTML generation, content truncation, and interaction between callback and DOM-based status display.
+
 ## Troubleshooting Common Issues
 
 ### "require is not defined" Error
