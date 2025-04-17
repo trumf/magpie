@@ -8,6 +8,17 @@
 // Import headline extraction
 import {extractDisplayName} from "./HeadlineExtraction.js";
 
+// Import IndexedDB manager functions
+import {
+  initIndexedDB,
+  saveZipData,
+  getAllZipFiles,
+  getZipFileById,
+  updateZipFile,
+  clearZipFiles,
+  deleteZipFile,
+} from "./db/indexedDBManager.js";
+
 // Default configuration
 const DEFAULT_CONFIG = {
   dbName: "ZipFileDB",
@@ -30,40 +41,20 @@ export class ZipFileManager {
    * @returns {Promise<IDBDatabase>} The database instance
    */
   async initIndexedDB() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.config.dbName, this.config.dbVersion);
-
-      request.onerror = (event) => {
-        console.error("IndexedDB error:", event.target.error);
-        this.showStatus(
-          "error",
-          `Failed to open database: ${event.target.error.message}`
-        );
-        reject(event.target.error);
-      };
-
-      request.onsuccess = (event) => {
-        this.db = event.target.result;
-        console.log("Database opened successfully");
-        this.showStatus("success", "Database opened successfully");
-        resolve(this.db);
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        console.log("Creating object store");
-
-        // Create object store for zip files if it doesn't exist
-        if (!db.objectStoreNames.contains(this.config.storeName)) {
-          const store = db.createObjectStore(this.config.storeName, {
-            keyPath: "id",
-            autoIncrement: true,
-          });
-          store.createIndex("name", "name", {unique: false});
-          store.createIndex("timestamp", "timestamp", {unique: false});
-        }
-      };
-    });
+    try {
+      this.db = await initIndexedDB(
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.statusCallback
+      );
+      return this.db;
+    } catch (error) {
+      this.showStatus("error", `Failed to open database: ${error.message}`);
+      throw error;
+    }
   }
 
   /**
@@ -143,13 +134,7 @@ export class ZipFileManager {
             }
           }
 
-          // Save to IndexedDB
-          const transaction = this.db.transaction(
-            [this.config.storeName],
-            "readwrite"
-          );
-          const store = transaction.objectStore(this.config.storeName);
-
+          // Create ZIP data object
           const zipData = {
             name: file.name,
             size: file.size,
@@ -159,17 +144,23 @@ export class ZipFileManager {
             files,
           };
 
-          const request = store.add(zipData);
-
-          request.onsuccess = (event) => {
+          try {
+            // Save to IndexedDB using the database manager module
+            const id = await saveZipData(
+              zipData,
+              {
+                dbName: this.config.dbName,
+                dbVersion: this.config.dbVersion,
+                storeName: this.config.storeName,
+              },
+              this.db
+            );
             console.log("Zip file saved successfully");
-            resolve(event.target.result);
-          };
-
-          request.onerror = (event) => {
-            console.error("Error saving zip file:", event.target.error);
-            reject(event.target.error);
-          };
+            resolve(id);
+          } catch (dbError) {
+            console.error("Error saving zip file:", dbError);
+            reject(dbError);
+          }
         } catch (error) {
           console.error("Error processing zip file:", error);
           reject(error);
@@ -194,23 +185,19 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readonly"
+    try {
+      return await getAllZipFiles(
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.getAll();
-
-      request.onsuccess = (event) => {
-        resolve(event.target.result);
-      };
-
-      request.onerror = (event) => {
-        console.error("Error getting zip files:", event.target.error);
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error getting zip files:", error);
+      throw error;
+    }
   }
 
   /**
@@ -223,27 +210,20 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readonly"
+    try {
+      return await getZipFileById(
+        id,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.get(id);
-
-      request.onsuccess = (event) => {
-        if (event.target.result) {
-          resolve(event.target.result);
-        } else {
-          reject(new Error(`ZIP file with ID ${id} not found`));
-        }
-      };
-
-      request.onerror = (event) => {
-        console.error("Error getting zip file:", event.target.error);
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error getting zip file:", error);
+      throw error;
+    }
   }
 
   /**
@@ -255,23 +235,19 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readwrite"
+    try {
+      await clearZipFiles(
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.clear();
-
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = (event) => {
-        console.error("Error clearing zip files:", event.target.error);
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error clearing zip files:", error);
+      throw error;
+    }
   }
 
   /**
@@ -284,23 +260,20 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readwrite"
+    try {
+      await deleteZipFile(
+        id,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.delete(id);
-
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = (event) => {
-        console.error("Error deleting zip file:", event.target.error);
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error deleting zip file:", error);
+      throw error;
+    }
   }
 
   /**
@@ -588,23 +561,20 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readwrite"
+    try {
+      return await updateZipFile(
+        zipData,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-
-      const request = store.put(zipData);
-
-      request.onsuccess = (event) => {
-        resolve(event.target.result);
-      };
-
-      request.onerror = (event) => {
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error updating zip file:", error);
+      throw error;
+    }
   }
 
   /**

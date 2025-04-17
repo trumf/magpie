@@ -1,5 +1,8 @@
 // Mock browser APIs that aren't available in JSDOM
 
+// Central registry for all created mocks
+global._jestMocksRegistry = [];
+
 // Create a simple mock function that properly returns functions with chainable API
 function createMockFn() {
   const mockContext = {
@@ -13,6 +16,7 @@ function createMockFn() {
   };
 
   fn.mock = mockContext;
+  fn._isMockFunction = true;
 
   fn.mockReturnValue = function (value) {
     mockContext.returnValue = value;
@@ -27,6 +31,7 @@ function createMockFn() {
     };
 
     newFn.mock = mockContext;
+    newFn._isMockFunction = true;
     newFn.mockReturnValue = originalFn.mockReturnValue;
     newFn.mockImplementation = originalFn.mockImplementation;
 
@@ -45,6 +50,9 @@ function createMockFn() {
   fn.mockRejectedValue = function (error) {
     return fn.mockReturnValue(Promise.reject(error));
   };
+
+  // Add the mock to the central registry
+  global._jestMocksRegistry.push(fn);
 
   return fn;
 }
@@ -68,6 +76,8 @@ global.jest = {
       object[methodName] = original;
     };
 
+    mock._isMockFunction = true;
+
     // Add mockImplementation method
     mock.mockImplementation = function (impl) {
       object[methodName] = function (...args) {
@@ -79,6 +89,7 @@ global.jest = {
       object[methodName].mockImplementation = mock.mockImplementation;
       object[methodName].mockResolvedValue = mock.mockResolvedValue;
       object[methodName].mockRejectedValue = mock.mockRejectedValue;
+      object[methodName]._isMockFunction = true;
       return object[methodName];
     };
 
@@ -90,6 +101,9 @@ global.jest = {
     mock.mockRejectedValue = function (error) {
       return mock.mockImplementation(() => Promise.reject(error));
     };
+
+    // Add the spy to the central registry
+    global._jestMocksRegistry.push(mock);
 
     return mock;
   },
@@ -136,6 +150,32 @@ global.jest = {
 
     // Run all expired timers
     timerToRun.forEach((t) => t.callback());
+  },
+
+  // Add mock reset/restore functions
+  resetAllMocks: function () {
+    global._jestMocksRegistry.forEach((mock) => {
+      if (mock && typeof mock.mockClear === "function") {
+        mock.mockClear();
+      }
+    });
+  },
+
+  clearAllMocks: function () {
+    // For this custom setup, clearAllMocks behaves the same as resetAllMocks
+    this.resetAllMocks();
+  },
+
+  restoreAllMocks: function () {
+    global._jestMocksRegistry.forEach((mock) => {
+      if (mock && typeof mock.mockRestore === "function") {
+        mock.mockRestore();
+      }
+      // Restore also clears the mock history in Jest
+      if (mock && typeof mock.mockClear === "function") {
+        mock.mockClear();
+      }
+    });
   },
 };
 
