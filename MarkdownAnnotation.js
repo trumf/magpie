@@ -419,9 +419,12 @@ export const AnnotationSystem = (function () {
         return null;
       }
 
-      // Check for empty annotation text
-      if (!annotationText || annotationText.trim() === "") {
-        console.error("Cannot create annotation: Empty content");
+      // Check that we have either text or tags
+      if (
+        (!annotationText || annotationText.trim() === "") &&
+        tags.length === 0
+      ) {
+        console.error("Cannot create annotation: Need either text or tags");
         return null;
       }
 

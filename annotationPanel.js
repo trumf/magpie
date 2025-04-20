@@ -181,25 +181,27 @@ export function showAnnotationForm(selection, callbacks) {
 
   saveButton.addEventListener("click", () => {
     const annotationText = textarea.value.trim();
-    if (annotationText) {
-      // Process the tags input
-      const tagsValue = tagsInput.value.trim();
-      const tags = tagsValue
-        ? tagsValue
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter((tag) => tag.length > 0)
-        : [];
+    const tagsValue = tagsInput.value.trim();
+    const tags = tagsValue
+      ? tagsValue
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0)
+      : [];
 
+    // Allow save if there's text OR at least one tag
+    if (annotationText || tags.length > 0) {
       // Pass the cachedAnchor (which will be null for article notes)
       callbacks.save({
         anchor: cachedAnchor,
-        text: annotationText,
+        text: annotationText, // may be empty
         tags: tags,
       });
       document.body.removeChild(form);
     } else {
+      // Highlight both fields if completely empty
       textarea.style.borderColor = "red";
+      tagsInput.style.borderColor = "red";
     }
   });
 
@@ -502,17 +504,16 @@ export function showMobileAnnotationForm(element, callbacks) {
 
   saveButton.addEventListener("click", () => {
     const annotationText = textarea.value.trim();
+    const tagsValue = tagsInput.value.trim();
+    const tags = tagsValue
+      ? tagsValue
+          .split(",")
+          .map((tag) => tag.trim())
+          .filter((tag) => tag.length > 0)
+      : [];
 
-    if (annotationText) {
-      // Process the tags input
-      const tagsValue = tagsInput.value.trim();
-      const tags = tagsValue
-        ? tagsValue
-            .split(",")
-            .map((tag) => tag.trim())
-            .filter((tag) => tag.length > 0)
-        : [];
-
+    // Allow save if there's text OR at least one tag
+    if (annotationText || tags.length > 0) {
       // Create anchor for the paragraph
       const anchor = {
         text: selectedText,
@@ -523,7 +524,7 @@ export function showMobileAnnotationForm(element, callbacks) {
       // Create and save the annotation
       callbacks.save({
         anchor,
-        text: annotationText,
+        text: annotationText, // may be empty
         tags,
       });
 
@@ -542,8 +543,9 @@ export function showMobileAnnotationForm(element, callbacks) {
       // Show confirmation
       callbacks.showStatusIndicator("Annotation saved!");
     } else {
-      // Show error for empty note
+      // Highlight both fields if completely empty
       textarea.style.borderColor = "red";
+      tagsInput.style.borderColor = "red";
     }
   });
 
