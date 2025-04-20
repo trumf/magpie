@@ -1,5 +1,8 @@
 // Mock browser APIs that aren't available in JSDOM
 
+// Central registry for all created mocks
+global._jestMocksRegistry = [];
+
 // Create a simple mock function that properly returns functions with chainable API
 function createMockFn() {
   const mockContext = {
@@ -13,6 +16,7 @@ function createMockFn() {
   };
 
   fn.mock = mockContext;
+  fn._isMockFunction = true;
 
   fn.mockReturnValue = function (value) {
     mockContext.returnValue = value;
@@ -27,6 +31,7 @@ function createMockFn() {
     };
 
     newFn.mock = mockContext;
+    newFn._isMockFunction = true;
     newFn.mockReturnValue = originalFn.mockReturnValue;
     newFn.mockImplementation = originalFn.mockImplementation;
 
@@ -45,6 +50,9 @@ function createMockFn() {
   fn.mockRejectedValue = function (error) {
     return fn.mockReturnValue(Promise.reject(error));
   };
+
+  // Add the mock to the central registry
+  global._jestMocksRegistry.push(fn);
 
   return fn;
 }
@@ -68,6 +76,8 @@ global.jest = {
       object[methodName] = original;
     };
 
+    mock._isMockFunction = true;
+
     // Add mockImplementation method
     mock.mockImplementation = function (impl) {
       object[methodName] = function (...args) {
@@ -79,6 +89,7 @@ global.jest = {
       object[methodName].mockImplementation = mock.mockImplementation;
       object[methodName].mockResolvedValue = mock.mockResolvedValue;
       object[methodName].mockRejectedValue = mock.mockRejectedValue;
+      object[methodName]._isMockFunction = true;
       return object[methodName];
     };
 
@@ -90,6 +101,9 @@ global.jest = {
     mock.mockRejectedValue = function (error) {
       return mock.mockImplementation(() => Promise.reject(error));
     };
+
+    // Add the spy to the central registry
+    global._jestMocksRegistry.push(mock);
 
     return mock;
   },
@@ -136,6 +150,32 @@ global.jest = {
 
     // Run all expired timers
     timerToRun.forEach((t) => t.callback());
+  },
+
+  // Add mock reset/restore functions
+  resetAllMocks: function () {
+    global._jestMocksRegistry.forEach((mock) => {
+      if (mock && typeof mock.mockClear === "function") {
+        mock.mockClear();
+      }
+    });
+  },
+
+  clearAllMocks: function () {
+    // For this custom setup, clearAllMocks behaves the same as resetAllMocks
+    this.resetAllMocks();
+  },
+
+  restoreAllMocks: function () {
+    global._jestMocksRegistry.forEach((mock) => {
+      if (mock && typeof mock.mockRestore === "function") {
+        mock.mockRestore();
+      }
+      // Restore also clears the mock history in Jest
+      if (mock && typeof mock.mockClear === "function") {
+        mock.mockClear();
+      }
+    });
   },
 };
 
@@ -187,3 +227,62 @@ global.JSZip = function () {
 
   return jsZipInstance;
 };
+
+// jest.setup.js
+// ---------------------------
+// 1) Enable jest's built-in fake-timer API
+jest.useFakeTimers();
+
+// 2) Polyfill browser globals that JSDOM doesn't provide:
+
+// Mock FileReader
+global.FileReader = class {
+  constructor() {
+    this.onload = null;
+    this.onerror = null;
+    this.result = new ArrayBuffer(8); // Keep existing behavior
+    // Define readAsArrayBuffer as a Jest mock function
+    this.readAsArrayBuffer = jest.fn((_file) => {
+      // Simulate async loading completion - tests can trigger this manually if needed
+      // or we can add a default behavior later.
+      // Example: setTimeout(() => this.onload?.({ target: { result: this.result } }), 0);
+    });
+  }
+};
+
+// Mock JSZip
+global.JSZip = class {
+  constructor() {
+    this.loadAsync = jest.fn().mockResolvedValue({
+      // Provide a default mock implementation returning an empty files object
+      files: {},
+    });
+    // Add other JSZip methods as needed, mocking them with jest.fn()
+  }
+};
+
+// 3) A minimal IndexedDB stub (the detailed mock is in annotation-test-setup.js)
+// This basic stub prevents errors in tests that don't import the detailed mock.
+global.indexedDB = {
+  open: jest.fn().mockReturnValue({
+    // Return a minimal request object structure
+    onsuccess: null,
+    onerror: null,
+    onupgradeneeded: null,
+    result: null, // No detailed mock DB needed here
+    readyState: "done",
+  }),
+  deleteDatabase: jest.fn().mockReturnValue({
+    onsuccess: null,
+    onerror: null,
+  }),
+  // Add a flag to identify this basic mock (optional)
+  isMock: true,
+  isBasicGlobalMock: true,
+};
+
+// 4) Clean up mocks and timers after each test
+afterEach(() => {
+  jest.clearAllMocks();
+  jest.clearAllTimers(); // Clear timers managed by jest.useFakeTimers()
+});

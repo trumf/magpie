@@ -6,7 +6,31 @@
  */
 
 // Import headline extraction
-import {extractDisplayName} from "./HeadlineExtraction.js";
+// import {extractDisplayName} from "./HeadlineExtraction.js";
+
+// Import IndexedDB manager functions
+import {
+  initIndexedDB,
+  saveZipData,
+  getAllZipFiles,
+  getZipFileById,
+  updateZipFile,
+  clearZipFiles,
+  deleteZipFile,
+} from "./db/indexedDBManager.js";
+
+// Import the parser
+import {parseZipFile} from "./parser/zipParser.js";
+
+// Import view functions
+import {showStatus} from "./view/htmlGenerator.js";
+
+// Import status and sort functions
+import {
+  updateFileReadStatus,
+  checkFileReadStatus,
+  sortFilesByReadStatus as sortFilesByStatus, // alias to avoid conflict
+} from "./status/fileStatusManager.js";
 
 // Default configuration
 const DEFAULT_CONFIG = {
@@ -30,63 +54,25 @@ export class ZipFileManager {
    * @returns {Promise<IDBDatabase>} The database instance
    */
   async initIndexedDB() {
-    return new Promise((resolve, reject) => {
-      const request = indexedDB.open(this.config.dbName, this.config.dbVersion);
-
-      request.onerror = (event) => {
-        console.error("IndexedDB error:", event.target.error);
-        this.showStatus(
-          "error",
-          `Failed to open database: ${event.target.error.message}`
-        );
-        reject(event.target.error);
-      };
-
-      request.onsuccess = (event) => {
-        this.db = event.target.result;
-        console.log("Database opened successfully");
-        this.showStatus("success", "Database opened successfully");
-        resolve(this.db);
-      };
-
-      request.onupgradeneeded = (event) => {
-        const db = event.target.result;
-        console.log("Creating object store");
-
-        // Create object store for zip files if it doesn't exist
-        if (!db.objectStoreNames.contains(this.config.storeName)) {
-          const store = db.createObjectStore(this.config.storeName, {
-            keyPath: "id",
-            autoIncrement: true,
-          });
-          store.createIndex("name", "name", {unique: false});
-          store.createIndex("timestamp", "timestamp", {unique: false});
-        }
-      };
-    });
-  }
-
-  /**
-   * Display status message
-   * @param {string} type - The type of status (success, error, info)
-   * @param {string} message - The message to display
-   * @param {HTMLElement} element - Optional DOM element to display status in
-   */
-  showStatus(type, message, element = null) {
-    // If a status callback is provided, use it
-    if (this.statusCallback) {
-      this.statusCallback(type, message);
-      return;
-    }
-
-    // If an element is provided, update its innerHTML
-    if (element) {
-      element.innerHTML = `<div class="status ${type}">${message}</div>`;
-
-      // Clear status after specified duration
-      setTimeout(() => {
-        element.innerHTML = "";
-      }, this.config.statusDisplayDuration);
+    try {
+      this.db = await initIndexedDB(
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.statusCallback
+      );
+      return this.db;
+    } catch (error) {
+      showStatus(
+        "error",
+        `Failed to open database: ${error.message}`,
+        this.statusCallback,
+        null,
+        this.config.statusDisplayDuration
+      );
+      throw error;
     }
   }
 
@@ -100,89 +86,27 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
+    try {
+      // Parse the zip file using the dedicated parser
+      const zipData = await parseZipFile(file);
 
-      reader.onload = async (event) => {
-        try {
-          // Make sure JSZip is available
-          if (typeof JSZip !== "function") {
-            throw new Error(
-              "JSZip library not found. Please include JSZip in your project."
-            );
-          }
-
-          const arrayBuffer = event.target.result;
-          const jszip = new JSZip();
-          const zip = await jszip.loadAsync(arrayBuffer);
-
-          // Process ZIP contents
-          const files = [];
-          let totalSize = 0;
-
-          for (const [path, zipEntry] of Object.entries(zip.files)) {
-            if (!zipEntry.dir) {
-              const content = await zipEntry.async("string");
-
-              // Extract display name for markdown files
-              let displayName = path;
-              if (
-                path.toLowerCase().endsWith(".md") ||
-                path.toLowerCase().endsWith(".markdown")
-              ) {
-                displayName = extractDisplayName(content, path);
-              }
-
-              files.push({
-                path,
-                displayName,
-                size: content.length,
-                content: content,
-              });
-              totalSize += content.length;
-            }
-          }
-
-          // Save to IndexedDB
-          const transaction = this.db.transaction(
-            [this.config.storeName],
-            "readwrite"
-          );
-          const store = transaction.objectStore(this.config.storeName);
-
-          const zipData = {
-            name: file.name,
-            size: file.size,
-            timestamp: new Date().toISOString(),
-            fileCount: files.length,
-            totalSize,
-            files,
-          };
-
-          const request = store.add(zipData);
-
-          request.onsuccess = (event) => {
-            console.log("Zip file saved successfully");
-            resolve(event.target.result);
-          };
-
-          request.onerror = (event) => {
-            console.error("Error saving zip file:", event.target.error);
-            reject(event.target.error);
-          };
-        } catch (error) {
-          console.error("Error processing zip file:", error);
-          reject(error);
-        }
-      };
-
-      reader.onerror = (event) => {
-        console.error("Error reading file:", event.target.error);
-        reject(event.target.error);
-      };
-
-      reader.readAsArrayBuffer(file);
-    });
+      // Save the extracted data to IndexedDB
+      const id = await saveZipData(
+        zipData,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
+      );
+      console.log("Zip file saved successfully with ID:", id);
+      return id;
+    } catch (error) {
+      console.error("Error saving zip file:", error);
+      // Propagate the error so the caller knows something went wrong
+      throw error;
+    }
   }
 
   /**
@@ -194,23 +118,19 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readonly"
+    try {
+      return await getAllZipFiles(
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.getAll();
-
-      request.onsuccess = (event) => {
-        resolve(event.target.result);
-      };
-
-      request.onerror = (event) => {
-        console.error("Error getting zip files:", event.target.error);
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error getting zip files:", error);
+      throw error;
+    }
   }
 
   /**
@@ -223,27 +143,20 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readonly"
+    try {
+      return await getZipFileById(
+        id,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.get(id);
-
-      request.onsuccess = (event) => {
-        if (event.target.result) {
-          resolve(event.target.result);
-        } else {
-          reject(new Error(`ZIP file with ID ${id} not found`));
-        }
-      };
-
-      request.onerror = (event) => {
-        console.error("Error getting zip file:", event.target.error);
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error getting zip file:", error);
+      throw error;
+    }
   }
 
   /**
@@ -255,23 +168,19 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readwrite"
+    try {
+      await clearZipFiles(
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.clear();
-
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = (event) => {
-        console.error("Error clearing zip files:", event.target.error);
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error clearing zip files:", error);
+      throw error;
+    }
   }
 
   /**
@@ -284,92 +193,20 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readwrite"
+    try {
+      await deleteZipFile(
+        id,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-      const request = store.delete(id);
-
-      request.onsuccess = () => {
-        resolve();
-      };
-
-      request.onerror = (event) => {
-        console.error("Error deleting zip file:", event.target.error);
-        reject(event.target.error);
-      };
-    });
-  }
-
-  /**
-   * Format file size in human-readable format
-   * @param {number} bytes - Size in bytes
-   * @returns {string} Formatted size (e.g., "1.23 KB")
-   */
-  formatSize(bytes) {
-    if (bytes < 1024) {
-      return bytes + " bytes";
-    } else if (bytes < 1024 * 1024) {
-      return (bytes / 1024).toFixed(2) + " KB";
-    } else {
-      return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+    } catch (error) {
+      console.error("Error deleting zip file:", error);
+      throw error;
     }
-  }
-
-  /**
-   * Generate HTML content to display ZIP files
-   * @param {Array} zipFiles - Array of ZIP file objects
-   * @returns {string} HTML content
-   */
-  generateZipFilesHtml(zipFiles) {
-    if (zipFiles.length === 0) {
-      return "<p>No ZIP files stored in the database.</p>";
-    }
-
-    let html = "<table>";
-    html +=
-      "<tr><th>ID</th><th>Name</th><th>Size</th><th>Files</th><th>Timestamp</th></tr>";
-
-    for (const zipFile of zipFiles) {
-      html += `
-        <tr>
-          <td>${zipFile.id}</td>
-          <td>${zipFile.name}</td>
-          <td>${this.formatSize(zipFile.size)}</td>
-          <td>${zipFile.fileCount}</td>
-          <td>${new Date(zipFile.timestamp).toLocaleString()}</td>
-        </tr>
-      `;
-    }
-
-    html += "</table>";
-
-    // Add file details for the most recent upload
-    const mostRecent = zipFiles[zipFiles.length - 1];
-    if (mostRecent) {
-      html += `<h3>Content of ${mostRecent.name} (showing ${mostRecent.files.length} files)</h3>`;
-      html += "<pre>";
-
-      mostRecent.files.forEach((file, index) => {
-        if (index < 10) {
-          // Limit to first 10 files to avoid overloading the UI
-          html += `<strong>${file.path}</strong> (${this.formatSize(
-            file.size
-          )}):\n`;
-          html += `${file.content}\n\n`;
-        }
-      });
-
-      if (mostRecent.files.length > 10) {
-        html += `... and ${mostRecent.files.length - 10} more files`;
-      }
-
-      html += "</pre>";
-    }
-
-    return html;
   }
 
   /**
@@ -385,24 +222,24 @@ export class ZipFileManager {
 
     try {
       // Get the current ZIP file data
-      const zipData = await this.getZipFileById(zipId);
+      let zipData = await this.getZipFileById(zipId);
       if (!zipData) {
+        console.error("Error marking file as read: Zip file not found.");
         return false;
       }
 
-      // Find the file in the ZIP
-      const fileIndex = zipData.files.findIndex(
-        (file) => file.path === filePath
-      );
-      if (fileIndex === -1) {
-        return false;
+      // Update the file's status in the zipData object
+      zipData = updateFileReadStatus(zipData, filePath, true);
+
+      // Check if the file was actually found and updated by the helper
+      if (!zipData.files.find((f) => f.path === filePath)?.isRead) {
+        console.error(
+          "Error marking file as read: File path not found within zipData."
+        );
+        return false; // File path wasn't found in the data
       }
 
-      // Update the file's read status
-      zipData.files[fileIndex].isRead = true;
-      zipData.files[fileIndex].readDate = new Date().toISOString();
-
-      // Save the updated ZIP data
+      // Save the updated ZIP data back to the database
       await this._updateZipFile(zipData);
       return true;
     } catch (error) {
@@ -424,24 +261,25 @@ export class ZipFileManager {
 
     try {
       // Get the current ZIP file data
-      const zipData = await this.getZipFileById(zipId);
+      let zipData = await this.getZipFileById(zipId);
       if (!zipData) {
+        console.error("Error marking file as unread: Zip file not found.");
         return false;
       }
 
-      // Find the file in the ZIP
-      const fileIndex = zipData.files.findIndex(
-        (file) => file.path === filePath
-      );
-      if (fileIndex === -1) {
-        return false;
+      // Update the file's status in the zipData object
+      zipData = updateFileReadStatus(zipData, filePath, false);
+
+      // Check if the file was actually found and updated by the helper
+      const targetFile = zipData.files.find((f) => f.path === filePath);
+      if (!targetFile || targetFile.isRead === true) {
+        console.error(
+          "Error marking file as unread: File path not found or status not updated."
+        );
+        return false; // File path wasn't found or status didn't change
       }
 
-      // Update the file's read status
-      zipData.files[fileIndex].isRead = false;
-      delete zipData.files[fileIndex].readDate;
-
-      // Save the updated ZIP data
+      // Save the updated ZIP data back to the database
       await this._updateZipFile(zipData);
       return true;
     } catch (error) {
@@ -492,64 +330,19 @@ export class ZipFileManager {
 
     try {
       // Get the current ZIP file data
-      const zipData = await this.getZipFileById(zipId);
+      let zipData = await this.getZipFileById(zipId);
       if (!zipData) {
+        console.error("Error checking if file is read: Zip file not found.");
         return false;
       }
 
-      // Find the file in the ZIP
-      const file = zipData.files.find((file) => file.path === filePath);
-      if (!file) {
-        return false;
-      }
-
-      // Return the read status
-      return file.isRead === true;
+      // Find the file in the ZIP and check its status using the helper
+      // Note: checkFileReadStatus operates on the retrieved data, not the DB directly
+      return checkFileReadStatus(zipData, filePath);
     } catch (error) {
       console.error("Error checking if file is read:", error);
       return false;
     }
-  }
-
-  /**
-   * Update a file's read status directly (helper for testing)
-   * @param {Object} zipData - ZIP file data
-   * @param {string} filePath - Path of the file to update
-   * @param {boolean} isRead - Read status to set
-   * @returns {Object} Updated ZIP data
-   */
-  updateFileReadStatus(zipData, filePath, isRead) {
-    if (!zipData || !zipData.files) {
-      return zipData;
-    }
-
-    const fileIndex = zipData.files.findIndex((file) => file.path === filePath);
-    if (fileIndex !== -1) {
-      if (isRead) {
-        zipData.files[fileIndex].isRead = true;
-        zipData.files[fileIndex].readDate = new Date().toISOString();
-      } else {
-        zipData.files[fileIndex].isRead = false;
-        delete zipData.files[fileIndex].readDate;
-      }
-    }
-
-    return zipData;
-  }
-
-  /**
-   * Check if a file is marked as read (direct check without DB)
-   * @param {Object} zipData - ZIP file data
-   * @param {string} filePath - Path of the file to check
-   * @returns {boolean} True if the file is marked as read
-   */
-  checkFileReadStatus(zipData, filePath) {
-    if (!zipData || !zipData.files) {
-      return false;
-    }
-
-    const file = zipData.files.find((file) => file.path === filePath);
-    return file ? file.isRead === true : false;
   }
 
   /**
@@ -588,23 +381,20 @@ export class ZipFileManager {
       await this.initIndexedDB();
     }
 
-    return new Promise((resolve, reject) => {
-      const transaction = this.db.transaction(
-        [this.config.storeName],
-        "readwrite"
+    try {
+      return await updateZipFile(
+        zipData,
+        {
+          dbName: this.config.dbName,
+          dbVersion: this.config.dbVersion,
+          storeName: this.config.storeName,
+        },
+        this.db
       );
-      const store = transaction.objectStore(this.config.storeName);
-
-      const request = store.put(zipData);
-
-      request.onsuccess = (event) => {
-        resolve(event.target.result);
-      };
-
-      request.onerror = (event) => {
-        reject(event.target.error);
-      };
-    });
+    } catch (error) {
+      console.error("Error updating zip file:", error);
+      throw error;
+    }
   }
 
   /**
@@ -614,55 +404,7 @@ export class ZipFileManager {
    * @returns {Array} The sorted array of files
    */
   sortFilesByReadStatus(files, sortOrder) {
-    if (!files || !Array.isArray(files) || files.length === 0) {
-      return [];
-    }
-
-    // Create a copy of the array to avoid modifying the original
-    const filesCopy = [...files];
-
-    switch (sortOrder) {
-      case "unread_first":
-        // Sort unread files first, then alphabetically within each group
-        return filesCopy.sort((a, b) => {
-          // If a is read and b is unread, b comes first
-          if (a.isRead && !b.isRead) return 1;
-          // If a is unread and b is read, a comes first
-          if (!a.isRead && b.isRead) return -1;
-          // Otherwise sort alphabetically by path
-          return a.path.localeCompare(b.path);
-        });
-
-      case "read_first":
-        // Sort read files first, then alphabetically within each group
-        return filesCopy.sort((a, b) => {
-          // If a is unread and b is read, b comes first
-          if (!a.isRead && b.isRead) return 1;
-          // If a is read and b is unread, a comes first
-          if (a.isRead && !b.isRead) return -1;
-          // Otherwise sort alphabetically by path
-          return a.path.localeCompare(b.path);
-        });
-
-      case "read_date":
-        // Sort by most recently read first, with unread files at the end
-        return filesCopy.sort((a, b) => {
-          // If both are read, sort by read date (most recent first)
-          if (a.isRead && b.isRead) {
-            return new Date(b.readDate) - new Date(a.readDate);
-          }
-          // If only a is read, it comes first
-          if (a.isRead && !b.isRead) return -1;
-          // If only b is read, it comes first
-          if (!a.isRead && b.isRead) return 1;
-          // If both are unread, sort alphabetically
-          return a.path.localeCompare(b.path);
-        });
-
-      case "alphabet":
-      default:
-        // Default to alphabetical sorting by path
-        return filesCopy.sort((a, b) => a.path.localeCompare(b.path));
-    }
+    // Delegate directly to the imported function
+    return sortFilesByStatus(files, sortOrder);
   }
 }

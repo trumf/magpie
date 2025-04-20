@@ -21,6 +21,7 @@ h1, h2, h3, h4, h5, h6 {
     margin-top: 1.5em;
     margin-bottom: 0.5em;
     color: #2c3e50;
+    line-height: 1.2;
 }
 h1 { font-size: 2.2em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
 h2 { font-size: 1.8em; border-bottom: 1px solid #eee; padding-bottom: 0.3em; }
@@ -28,6 +29,9 @@ h3 { font-size: 1.5em; }
 h4 { font-size: 1.3em; }
 h5 { font-size: 1.2em; }
 h6 { font-size: 1.1em; }
+p {
+    margin-bottom: 0.5em;
+}
 a { color: #0366d6; text-decoration: none; }
 a:hover { text-decoration: underline; }
 code {

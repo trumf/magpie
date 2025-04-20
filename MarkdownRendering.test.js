@@ -14,37 +14,30 @@ import {
 
 // Mock the marked library with proper implementation
 global.marked = {
-  parse: function (markdown) {
+  parse: jest.fn((markdown) => {
+    // Basic mock: Handle # heading for the specific test case
+    if (markdown.startsWith("# ")) {
+      const content = markdown.substring(2);
+      const id = content.toLowerCase().replace(/\s+/g, "-");
+      return `<h1 id="${id}">${content}</h1>\n`;
+    }
+    // Default fallback
     return `<p>${markdown}</p>`;
-  },
-  setOptions: function (options) {
-    // Do nothing
-  },
-};
-
-// Track function calls for verification
-let parseCallArgs = [];
-let setOptionsCallArgs = [];
-let originalParseFunction = global.marked.parse;
-let originalSetOptionsFunction = global.marked.setOptions;
-
-// Override the functions to track calls
-global.marked.parse = function () {
-  parseCallArgs.push(Array.from(arguments));
-  return originalParseFunction.apply(this, arguments);
-};
-
-global.marked.setOptions = function () {
-  setOptionsCallArgs.push(Array.from(arguments));
-  return originalSetOptionsFunction.apply(this, arguments);
+  }),
+  setOptions: jest.fn((options) => {
+    // Do nothing, just track calls
+  }),
 };
 
 describe("MarkdownRendering", () => {
   // Setup and teardown
   beforeEach(() => {
+    // Clear mock function calls automatically handled by jest.clearAllMocks()
+    /*
     // Clear call tracking
     parseCallArgs = [];
     setOptionsCallArgs = [];
+    */
 
     // Reset the document body
     document.body.innerHTML = "";
@@ -76,8 +69,8 @@ describe("MarkdownRendering", () => {
   describe("renderMarkdown", () => {
     it("should render markdown to HTML", () => {
       const result = renderMarkdown("Test markdown");
-      expect(parseCallArgs.length).toBe(1);
-      expect(parseCallArgs[0][0]).toBe("Test markdown");
+      // Use Jest matchers
+      expect(global.marked.parse).toHaveBeenCalledWith("Test markdown");
       expect(result).toBe("<p>Test markdown</p>");
     });
 
@@ -238,7 +231,9 @@ describe("MarkdownRendering", () => {
       expect(window.fetchCalls.includes("http://example.com/test.md")).toBe(
         true
       );
-      expect(testDiv.innerHTML).toBe("<p># Markdown from URL</p>");
+      expect(testDiv.innerHTML).toBe(
+        '<h1 id="markdown-from-url">Markdown from URL</h1>\n'
+      );
     });
 
     it("should handle fetch errors", async () => {
@@ -280,102 +275,91 @@ describe("MarkdownRendering", () => {
   });
 
   describe("renderMarkdownFromFile", () => {
-    it("should read file and render markdown content", (done) => {
+    // Test 1: Successful read
+    it("should read file and render markdown content", async () => {
       // Create a mock file with content
       const testFile = {
         name: "test.md",
         content: "# File Markdown",
       };
 
-      // Create a mock FileReader that triggers onload immediately
-      class MockFileReader {
+      // Create a mock FileReader that triggers onload
+      class MockFileReaderSuccess {
         constructor() {
           this.result = null;
           this.onload = null;
         }
-
         readAsText(file) {
           this.result = file.content;
-          // Use setTimeout to make this async
           setTimeout(() => {
-            if (this.onload) {
-              this.onload({target: {result: file.content}});
-            }
+            this.onload?.({target: {result: this.result}});
           }, 0);
         }
       }
-
-      // Save original and replace
       const originalFileReader = window.FileReader;
-      window.FileReader = MockFileReader;
+      window.FileReader = MockFileReaderSuccess; // Override global mock locally
 
       const testDiv = document.createElement("div");
-      testDiv.id = "test-div";
+      testDiv.id = "test-div-success";
       document.body.appendChild(testDiv);
 
-      renderMarkdownFromFile(testFile, testDiv)
-        .then(() => {
-          expect(testDiv.innerHTML).toBe("<p># File Markdown</p>");
-          // Restore original
-          window.FileReader = originalFileReader;
-          done();
-        })
-        .catch((e) => {
-          // Restore original
-          window.FileReader = originalFileReader;
-          done(e);
-        });
-    }, 10000); // Increase timeout
-
-    it("should reject if no file is provided", async () => {
-      const testDiv = document.createElement("div");
-
       try {
-        await renderMarkdownFromFile(null, testDiv);
-        // Should not reach here
-        expect(true).toBe(false);
-      } catch (error) {
-        expect(error.message).toBe("No file provided");
+        const promise = renderMarkdownFromFile(testFile, testDiv);
+        // Advance timers to trigger the mock FileReader's onload
+        jest.runAllTimers();
+        await promise; // Wait for the rendering promise to resolve
+        expect(testDiv.innerHTML).toBe(
+          '<h1 id="file-markdown">File Markdown</h1>\n'
+        );
+      } finally {
+        // Clean up DOM element
+        document.body.removeChild(testDiv);
+        // Restore original FileReader (optional, but good practice if needed elsewhere)
+        window.FileReader = originalFileReader;
       }
     });
 
-    it("should handle FileReader errors", (done) => {
-      // Create a mock FileReader that triggers onerror immediately
-      class MockFileReader {
+    // Test 2: Reject on no file
+    it("should reject if no file is provided", async () => {
+      const testDiv = document.createElement("div");
+      await expect(renderMarkdownFromFile(null, testDiv)).rejects.toThrow(
+        "No file provided"
+      );
+    });
+
+    // Test 3: FileReader error
+    it("should handle FileReader errors", async () => {
+      // Create a mock FileReader that triggers onerror
+      class MockFileReaderError {
         constructor() {
           this.onerror = null;
         }
-
-        readAsText() {
-          // Use setTimeout to make this async
+        readAsText(file) {
           setTimeout(() => {
-            if (this.onerror) {
-              this.onerror(new Error("Read error"));
-            }
+            this.onerror?.(new Error("Read error"));
           }, 0);
         }
       }
-
-      // Save original and replace
       const originalFileReader = window.FileReader;
-      window.FileReader = MockFileReader;
+      window.FileReader = MockFileReaderError; // Override global mock locally
 
       const testFile = {name: "test.md"};
       const testDiv = document.createElement("div");
+      testDiv.id = "test-div-error";
+      document.body.appendChild(testDiv);
 
-      renderMarkdownFromFile(testFile, testDiv)
-        .then(() => {
-          // Should not reach here
-          window.FileReader = originalFileReader;
-          done(new Error("Should have rejected"));
-        })
-        .catch((error) => {
-          expect(error.message).toBe("Error reading file");
-          // Restore original
-          window.FileReader = originalFileReader;
-          done();
-        });
-    }, 10000); // Increase timeout
+      try {
+        const promise = renderMarkdownFromFile(testFile, testDiv);
+        // Advance timers to trigger the mock FileReader's onerror
+        jest.runAllTimers();
+        await expect(promise).rejects.toThrow("Error reading file");
+      } finally {
+        // Clean up DOM element
+        document.body.removeChild(testDiv);
+        // Restore original FileReader
+        window.FileReader = originalFileReader;
+      }
+    });
   });
 
   describe("getMarkdownStyles", () => {

@@ -80,10 +80,60 @@
         height: auto;
       }
 
+      .collection-controls {
+        padding: 16px;
+        border-bottom: 1px solid #ddd;
+        background: #fafafa;
+      }
+
+      .collection-controls h4 {
+        font-size: 16px;
+      }
+
+      .collection-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 16px 0;
+      }
+
+      #collection-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 12px 0;
+      }
+
+      #collection-list li {
+        padding: 6px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #collection-list li:hover {
+        background: #e0e0e0;
+      }
+
+      #collection-list li.empty {
+        color: #666;
+        cursor: default;
+      }
+
+      #collection-list button.delete-col {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 1em;
+      }
+
       .file-controls {
         padding: 16px;
         border-bottom: 1px solid #ddd;
         background-color: #eee;
+        display: flex;
+        align-items: center;
       }
 
       .file-list {
@@ -354,33 +404,36 @@
 
     <div class="container">
       <div class="sidebar" id="sidebar">
-        <div class="file-controls">
-          <h3>ZIP Files</h3>
-          <div style="margin: 16px 0">
+        <div class="collection-controls">
+          <div class="collection-heading">
+            <h4>Your Collections</h4>
             <label class="file-input-button">
               Import ZIP
               <input type="file" id="zip-file-input" accept=".zip" />
             </label>
           </div>
-          <div style="margin: 16px 0">
-            <label for="sort-order">Sort files by:</label>
-            <select
-              id="sort-order"
-              style="padding: 5px; width: 100%; margin-top: 5px"
-            >
-              <option value="alphabet">Alphabetical</option>
-              <option value="unread_first">Unread First</option>
-              <option value="read_first">Read First</option>
-              <option value="read_date">Recently Read</option>
-            </select>
-          </div>
-          <div id="status-message"></div>
+
+          <ul id="collection-list">
+            <li class="empty">No collections yet</li>
+          </ul>
         </div>
         <div class="nav-links">
           <a href="AnnotationPage.html" class="nav-link">
             <i>📝</i> View All Annotations
           </a>
         </div>
+        <div class="file-controls">
+          <label for="sort-order" style="width: 100%">Sort by:</label>
+          <select id="sort-order" style="padding: 5px; width: 100%">
+            <option value="alphabet">Alphabetical</option>
+            <option value="unread_first">Unread First</option>
+            <option value="read_first">Read First</option>
+            <option value="read_date">Recently Read</option>
+          </select>
+
+          <div id="status-message"></div>
+        </div>
+
         <div class="file-list" id="file-list">
           <div class="empty-state">
             <p>No ZIP files imported</p>
@@ -406,6 +459,12 @@
       import {AnnotationSystem} from "./MarkdownAnnotation.js";
       import {ArticleNavigationHelper} from "./ArticleNavigation.js";
       import {setupSwipeNavigation} from "./SwipeNavigation.js";
+      import {
+        refreshCollections,
+        selectCollection,
+      } from "./CollectionsManager.js";
+
+      // Collection management functions are now imported from CollectionsManager.js
 
       // --- Toggle Menu Function ---
       window.toggleMenu = function () {
@@ -478,6 +537,15 @@
 
           // Display the ZIP file contents
           displayZipContents(zipData);
+
+          // Refresh the collections list
+          await refreshCollections(
+            zipManager,
+            document.getElementById("collection-list"),
+            currentZipId,
+            document.getElementById("markdown-content"),
+            displayZipContents
+          );
 
           // Reset the file input
           zipFileInput.value = "";
@@ -816,6 +884,15 @@
             updateSidebarSelection
           );
           // --- End Setup Swipe Navigation ---
+
+          // Refresh the collections list
+          await refreshCollections(
+            zipManager,
+            document.getElementById("collection-list"),
+            currentZipId,
+            document.getElementById("markdown-content"),
+            displayZipContents
+          );
         } catch (error) {
           console.error("Error during initialization:", error);
           showStatus("error", `Initialization failed: ${error.message}`);

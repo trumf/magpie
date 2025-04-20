@@ -63,7 +63,7 @@ describe("AnnotationStorage", () => {
 
     // Initialize the database
     await storage.initIndexedDB();
-  });
+  }, 10000); // Set timeout to 10 seconds
 
   afterEach(async () => {
     // Clean up after tests

@@ -1,34 +1,34 @@
 # ZipFileManager
 
-A JavaScript ES module for handling ZIP file imports and storage in IndexedDB for web applications.
+A JavaScript ES module providing a facade for importing, storing, and managing ZIP files using IndexedDB in web applications.
 
 ## Features
 
-- Import ZIP files and extract their contents
-- Store ZIP files and their contents in IndexedDB for persistent storage
-- Retrieve, delete, and manage stored ZIP files
-- Format file sizes in human-readable formats
-- Generate HTML to display ZIP file contents
-- Configurable database settings
+- Import ZIP files via a simple API.
+- Store ZIP file metadata and contents persistently in IndexedDB.
+- Retrieve, update, and delete stored ZIP files.
+- Manage read/unread status for individual files within a ZIP.
+- Sort files within a ZIP based on various criteria (name, read status, read date).
+- Configurable database settings and status reporting.
 
 ## Requirements
 
-- Modern web browser with IndexedDB support
-- [JSZip](https://stuk.github.io/jszip/) library for ZIP file handling
+- Modern web browser with IndexedDB support.
+- [JSZip](https://stuk.github.io/jszip/) library must be included in the host project.
 
 ## Installation
 
-1. Include the ZipFileManager.js module in your project
-2. Add JSZip to your project (via npm, CDN, or direct download)
+1.  Ensure JSZip is available in your project (e.g., via CDN or npm).
+2.  Import the `ZipFileManager` class from `ZipFileManager.js`.
 
 ```html
-<!-- Include JSZip library -->
+<!-- Include JSZip library (example using CDN) -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 
 <!-- Import the ZipFileManager module -->
 <script type="module">
   import {ZipFileManager} from "./ZipFileManager.js";
-  // Your code here
+  // Your application code here
 </script>
 ```
 
@@ -37,155 +37,139 @@ A JavaScript ES module for handling ZIP file imports and storage in IndexedDB fo
 ### Basic Usage
 
 ```javascript
-// Import the module
-import {ZipFileManager} from "./ZipFileManager.js";
+// Import the class
+import { ZipFileManager } from "./ZipFileManager.js";
 
-// Create an instance with default settings
+// Create an instance (using default IndexedDB settings)
 const zipManager = new ZipFileManager();
 
-// Initialize the database
+// Initialize the database (recommended)
 await zipManager.initIndexedDB();
 
-// Save a ZIP file (from a file input)
-const fileInput = document.getElementById("zipFileInput");
-fileInput.addEventListener("change", async (event) => {
-  const file = event.target.files[0];
-  if (file && file.name.endsWith(".zip")) {
-    try {
-      await zipManager.saveZipFile(file);
-      console.log("ZIP file saved successfully");
-    } catch (error) {
-      console.error("Error saving ZIP file:", error);
-    }
-  }
-});
+// --- Interacting with ZIP files ---
 
-// Get all stored ZIP files
-const zipFiles = await zipManager.getAllZipFiles();
+// Get a File object (e.g., from an <input type="file">)
+const zipFileObject = /* ... get file object ... */;
 
-// Display ZIP files in an element
-const contentElement = document.getElementById("content");
-contentElement.innerHTML = zipManager.generateZipFilesHtml(zipFiles);
+// Save the ZIP file to IndexedDB
+try {
+  const savedId = await zipManager.saveZipFile(zipFileObject);
+  console.log(`ZIP file saved with ID: ${savedId}`);
+} catch (error) {
+  console.error("Error saving ZIP file:", error);
+}
 
-// Clear all ZIP files
+// Get all stored ZIP file records
+const allZips = await zipManager.getAllZipFiles();
+console.log("Stored ZIPs:", allZips);
+
+// Get a specific ZIP file record by its ID
+const specificZip = await zipManager.getZipFileById(savedId);
+console.log("Specific ZIP:", specificZip);
+
+// Mark a file within a ZIP as read
+const filePathToMark = specificZip.files[0].path; // Example path
+await zipManager.markFileAsRead(savedId, filePathToMark);
+
+// Check if a file is read
+const isRead = await zipManager.isFileRead(savedId, filePathToMark);
+console.log(`File ${filePathToMark} is read: ${isRead}`);
+
+// Sort files within a ZIP record (e.g., unread first)
+const sortedFiles = zipManager.sortFilesByReadStatus(
+  specificZip.files,
+  "unread_first"
+);
+console.log("Sorted files:", sortedFiles);
+
+// Delete a specific ZIP file
+await zipManager.deleteZipFile(savedId);
+
+// Clear all ZIP files from the database
 await zipManager.clearZipFiles();
 ```
 
 ### Custom Configuration
 
+You can customize the IndexedDB settings and status reporting when creating an instance:
+
 ```javascript
-const zipManager = new ZipFileManager({
+const customConfig = {
   dbName: "MyCustomDB",
   dbVersion: 2,
   storeName: "myZipFiles",
-  maxContentPreviewLength: 500,
-  statusDisplayDuration: 3000,
+  statusDisplayDuration: 3000, // How long status messages are shown (if using default handler)
   statusCallback: (type, message) => {
-    // Custom status handling
-    console.log(`${type}: ${message}`);
+    // Implement your own status message handling (e.g., display in a UI element)
+    console.log(`[${type.toUpperCase()}] ${message}`);
   },
-});
+  // maxContentPreviewLength is handled internally by the parser now
+};
+
+const zipManager = new ZipFileManager(customConfig);
 ```
 
 ## API Reference
 
-### Constructor
+### `new ZipFileManager(config)`
 
-```javascript
-new ZipFileManager(config);
-```
+Creates a new `ZipFileManager` instance.
 
-- `config` (optional): Object with custom configuration options
-  - `dbName`: Name of the IndexedDB database (default: 'ZipFileDB')
-  - `dbVersion`: Version of the database (default: 1)
-  - `storeName`: Name of the object store (default: 'zipFiles')
-  - `maxContentPreviewLength`: Maximum length for content previews (default: 1000)
-  - `statusDisplayDuration`: Duration to display status messages in milliseconds (default: 5000)
-  - `statusCallback`: Custom function to handle status messages (default: null)
+- `config` (optional): Object with configuration options:
+  - `dbName`: Name of the IndexedDB database (default: `'ZipFileDB'`).
+  - `dbVersion`: Version of the database (default: `1`).
+  - `storeName`: Name of the IndexedDB object store (default: `'zipFiles'`).
+  - `statusDisplayDuration`: Default duration (ms) for status messages if using the built-in view handler (default: `5000`).
+  - `statusCallback`: A function `(type, message)` to handle status updates (e.g., errors, success). If not provided, a default console logger might be used or messages passed to `view/htmlGenerator.showStatus` if applicable in the context.
 
 ### Methods
 
-#### `async initIndexedDB()`
+All methods interacting with the database are `async` and return Promises.
 
-Initializes the IndexedDB database. Returns a Promise that resolves to the database instance.
+- **`async initIndexedDB()`**: Initializes the IndexedDB database connection. Recommended to call before other DB operations, although methods will attempt to initialize if needed.
+- **`async saveZipFile(file)`**: Parses the provided `File` object (must be a ZIP file) and saves its contents and metadata to IndexedDB. Returns the `id` of the saved record.
+- **`async getAllZipFiles()`**: Retrieves all ZIP file records from IndexedDB. Returns an array of zip data objects.
+- **`async getZipFileById(id)`**: Retrieves a specific ZIP file record by its `id`. Returns the zip data object or `undefined` if not found.
+- **`async deleteZipFile(id)`**: Deletes a specific ZIP file record by its `id`.
+- **`async clearZipFiles()`**: Deletes all ZIP file records from the database.
+- **`async markFileAsRead(zipId, filePath)`**: Marks a specific file within a stored ZIP record as read. Updates the record in the database. Returns `true` on success, `false` on failure (e.g., zip/file not found).
+- **`async markFileAsUnread(zipId, filePath)`**: Marks a specific file within a stored ZIP record as unread. Updates the record in the database. Returns `true` on success, `false` on failure.
+- **`async toggleReadState(zipId, filePath)`**: Toggles the read state of a specific file within a stored ZIP record. Updates the record. Returns the _new_ read state (`true` if now read, `false` if now unread).
+- **`async isFileRead(zipId, filePath)`**: Checks if a specific file within a stored ZIP record is marked as read. Returns `true` or `false`.
+- **`async getAllReadFiles(zipId)`**: Retrieves an array of file objects marked as read within a specific ZIP record.
+- **`sortFilesByReadStatus(files, sortOrder)`**: Sorts an array of file objects (typically from a retrieved zip data object's `files` property). This is a synchronous method that operates on the provided array. Returns a _new_ sorted array.
+  - `files`: The array of file objects to sort.
+  - `sortOrder`: String indicating the sort order: `'unread_first'`, `'read_first'`, `'read_date'` (most recent first), `'alphabet'` (default).
 
-#### `async saveZipFile(file)`
+## Internal Modules (Implementation Detail)
 
-Saves a ZIP file to IndexedDB.
+The `ZipFileManager` class acts as a facade, coordinating several internal modules:
 
-- `file`: The ZIP file to save (from a file input)
-- Returns: Promise that resolves to the ID of the saved file
+- `db/indexedDBManager.js`: Handles all IndexedDB operations.
+- `parser/zipParser.js`: Handles ZIP file parsing using JSZip.
+- `status/fileStatusManager.js`: Manages in-memory read status updates and sorting logic.
+- `view/htmlGenerator.js`: Provides UI/view helper functions (like `showStatus`).
+- `HeadlineExtraction.js`: Utility for extracting display names from Markdown.
 
-#### `async getAllZipFiles()`
+Users of `ZipFileManager` typically do not need to interact with these modules directly.
 
-Gets all ZIP files stored in IndexedDB.
+## Data Structure (Conceptual)
 
-- Returns: Promise that resolves to an array of ZIP file objects
+While the exact storage is managed internally, conceptually, each ZIP record stored in IndexedDB contains:
 
-#### `async getZipFileById(id)`
-
-Gets a specific ZIP file by ID.
-
-- `id`: The ID of the ZIP file to retrieve
-- Returns: Promise that resolves to the ZIP file object
-
-#### `async clearZipFiles()`
-
-Clears all ZIP files from IndexedDB.
-
-- Returns: Promise that resolves when completed
-
-#### `async deleteZipFile(id)`
-
-Deletes a specific ZIP file by ID.
-
-- `id`: The ID of the ZIP file to delete
-- Returns: Promise that resolves when completed
-
-#### `formatSize(bytes)`
-
-Formats a file size in bytes to a human-readable string.
-
-- `bytes`: Size in bytes
-- Returns: Formatted size string (e.g., "1.23 KB")
-
-#### `generateZipFilesHtml(zipFiles)`
-
-Generates HTML content to display ZIP files.
-
-- `zipFiles`: Array of ZIP file objects
-- Returns: HTML string
-
-#### `showStatus(type, message, element = null)`
-
-Displays a status message.
-
-- `type`: Type of status message ('success', 'error', 'info')
-- `message`: The message to display
-- `element`: Optional DOM element to display the message in
-
-## Data Structure
-
-ZIP files are stored in IndexedDB with the following structure:
-
-```javascript
-{
-  id: [auto-generated],
-  name: "filename.zip",
-  size: 12345, // original file size in bytes
-  timestamp: "2023-04-01T12:34:56.789Z",
-  fileCount: 10,
-  totalSize: 54321, // total size of extracted contents
-  files: [
-    {
-      path: "folder/file.txt",
-      size: 1234,
-      content: "File content (truncated if too long)..."
-    },
-    // more files...
-  ]
-}
-```
+- `id`: Auto-generated unique ID.
+- `name`: Original filename of the ZIP.
+- `size`: Original file size in bytes.
+- `timestamp`: When the ZIP was added/updated.
+- `fileCount`: Number of files extracted.
+- `totalSize`: Approximate total size of extracted content.
+- `files`: An array of objects, each representing a file within the ZIP, containing:
+  - `path`: Full path within the ZIP.
+  - `displayName`: Extracted or default display name.
+  - `size`: Size of the extracted content.
+  - `content`: The extracted file content (string).
+  - `isRead`: Boolean flag indicating read status.
+  - `readDate`: ISO string timestamp when marked as read.
 
 ## License
 

@@ -41,3 +41,11 @@ Object.defineProperty(window, "sessionStorage", {
 // Mock URL.createObjectURL
 global.URL.createObjectURL = jest.fn(() => "blob:mock-url");
 global.URL.revokeObjectURL = jest.fn();
+
+// Clean up mocks after each test
+afterEach(() => {
+  // Clear fetch and URL mocks
+  jest.clearAllMocks();
+  // Reset localStorage/sessionStorage if needed for test isolation
+  localStorageMock.clear();
+});
