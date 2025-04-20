@@ -87,8 +87,14 @@
       }
 
       .collection-controls h4 {
-        margin-bottom: 8px;
         font-size: 16px;
+      }
+
+      .collection-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin: 16px 0;
       }
 
       #collection-list {
@@ -126,6 +132,8 @@
         padding: 16px;
         border-bottom: 1px solid #ddd;
         background-color: #eee;
+        display: flex;
+        align-items: center;
       }
 
       .file-list {
@@ -397,38 +405,35 @@
     <div class="container">
       <div class="sidebar" id="sidebar">
         <div class="collection-controls">
-          <h4>Your Collections</h4>
-          <ul id="collection-list">
-            <li class="empty">No collections yet</li>
-          </ul>
-        </div>
-        <div class="file-controls">
-          <h3>ZIP Files</h3>
-          <div style="margin: 16px 0">
+          <div class="collection-heading">
+            <h4>Your Collections</h4>
             <label class="file-input-button">
               Import ZIP
               <input type="file" id="zip-file-input" accept=".zip" />
             </label>
           </div>
-          <div style="margin: 16px 0">
-            <label for="sort-order">Sort files by:</label>
-            <select
-              id="sort-order"
-              style="padding: 5px; width: 100%; margin-top: 5px"
-            >
-              <option value="alphabet">Alphabetical</option>
-              <option value="unread_first">Unread First</option>
-              <option value="read_first">Read First</option>
-              <option value="read_date">Recently Read</option>
-            </select>
-          </div>
-          <div id="status-message"></div>
+
+          <ul id="collection-list">
+            <li class="empty">No collections yet</li>
+          </ul>
         </div>
         <div class="nav-links">
           <a href="AnnotationPage.html" class="nav-link">
             <i>📝</i> View All Annotations
           </a>
         </div>
+        <div class="file-controls">
+          <label for="sort-order" style="width: 100%">Sort by:</label>
+          <select id="sort-order" style="padding: 5px; width: 100%">
+            <option value="alphabet">Alphabetical</option>
+            <option value="unread_first">Unread First</option>
+            <option value="read_first">Read First</option>
+            <option value="read_date">Recently Read</option>
+          </select>
+
+          <div id="status-message"></div>
+        </div>
+
         <div class="file-list" id="file-list">
           <div class="empty-state">
             <p>No ZIP files imported</p>
