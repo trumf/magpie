@@ -669,6 +669,8 @@ export function setupTagAutocomplete(
   isMobile,
   fetchTags
 ) {
+  console.log("[autocomplete] Setting up autocomplete, isMobile=", isMobile);
+
   let autocompleteList = containerElement.querySelector(".autocomplete-list");
   if (!autocompleteList) {
     autocompleteList = createAnnotationElement("div", "autocomplete-list", {
@@ -684,6 +686,7 @@ export function setupTagAutocomplete(
       boxShadow: "0 2px 4px rgba(0,0,0,0.1)",
     });
     if (isMobile) {
+      console.log("[autocomplete] Setting up mobile-specific positioning");
       autocompleteList.style.bottom = "100%"; // Position above input
       autocompleteList.style.marginBottom = "2px";
     } else {
@@ -691,9 +694,14 @@ export function setupTagAutocomplete(
       autocompleteList.style.marginTop = "2px";
     }
     containerElement.appendChild(autocompleteList); // Append to container
+    console.log(
+      "[autocomplete] Created dropdown element, position:",
+      isMobile ? "above" : "below"
+    );
   }
 
   const renderSuggestions = (suggestions) => {
+    console.log("[autocomplete] Rendering suggestions:", suggestions);
     autocompleteList.innerHTML = ""; // Clear previous suggestions
     if (suggestions.length === 0) {
       autocompleteList.style.display = "none";
@@ -728,20 +736,33 @@ export function setupTagAutocomplete(
     });
 
     autocompleteList.style.display = "block";
+    console.log(
+      "[autocomplete] Rendered",
+      suggestions.length,
+      "suggestions — list DOM rect:",
+      autocompleteList.getBoundingClientRect(),
+      "container rect:",
+      containerElement.getBoundingClientRect()
+    );
   };
 
+  // Add input handler to show suggestions
   inputElement.addEventListener("input", async () => {
+    console.log("[autocomplete] Input fired, value=", inputElement.value);
     const currentValue = inputElement.value;
     const parts = currentValue.split(",");
     const currentTag = parts[parts.length - 1].trim().toLowerCase();
 
     if (currentTag === "") {
+      console.log("[autocomplete] Empty current tag, hiding suggestions");
       autocompleteList.style.display = "none";
       return;
     }
 
+    console.log("[autocomplete] Fetching tags for:", currentTag);
     // Fetch tags from the provided function
     const allTags = await fetchTags();
+    console.log("[autocomplete] Got all tags:", allTags);
 
     let tagsToSuggest = allTags.filter((tag) =>
       tag.toLowerCase().includes(currentTag)
@@ -755,22 +776,40 @@ export function setupTagAutocomplete(
       (suggestion) => !existingTags.includes(suggestion.toLowerCase())
     );
 
+    console.log("[autocomplete] Filtered suggestions:", tagsToSuggest);
     renderSuggestions(tagsToSuggest.slice(0, 10)); // Limit suggestions
   });
 
-  // Hide dropdown when clicking outside
-  const clickOutsideHandler = (event) => {
-    if (!containerElement.contains(event.target)) {
-      autocompleteList.style.display = "none";
-    }
-  };
+  // For mobile, add touchend handler as well for better touch support
+  if (isMobile) {
+    console.log("[autocomplete] Adding touchend handler for mobile");
+    inputElement.addEventListener("touchend", (e) => {
+      console.log("[autocomplete] touchend fired on input");
+      // When user taps on input, show current suggestions if any
+      const currentValue = inputElement.value;
+      const parts = currentValue.split(",");
+      const currentTag = parts[parts.length - 1].trim().toLowerCase();
 
-  // Use focusout/blur with relatedTarget check to handle clicks inside the list
+      if (currentTag !== "") {
+        // Trigger the input handler to refresh suggestions
+        inputElement.dispatchEvent(new Event("input"));
+      }
+    });
+  }
+
+  // Modified blur handler with debugging
   inputElement.addEventListener("blur", (event) => {
+    console.log(
+      "[autocomplete] Input blur event, activeElement:",
+      document.activeElement
+    );
     // Delay hiding to allow click event on suggestions to fire
     setTimeout(() => {
       if (!autocompleteList.contains(document.activeElement)) {
+        console.log("[autocomplete] Hiding dropdown after blur");
         autocompleteList.style.display = "none";
+      } else {
+        console.log("[autocomplete] Not hiding, focus is inside dropdown");
       }
     }, 150);
   });

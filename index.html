@@ -80,6 +80,57 @@
         height: auto;
       }
 
+      .collection-controls {
+        padding: 16px;
+        border-bottom: 1px solid #ddd;
+        background: #fafafa;
+      }
+
+      .collection-controls h4 {
+        margin-bottom: 8px;
+        font-size: 16px;
+      }
+
+      #collection-list {
+        list-style: none;
+        padding: 0;
+        margin: 0 0 12px 0;
+      }
+
+      #collection-list li {
+        padding: 6px 8px;
+        border-radius: 4px;
+        cursor: pointer;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      #collection-list li:hover {
+        background: #e0e0e0;
+      }
+
+      #collection-list li.empty {
+        color: #666;
+        cursor: default;
+      }
+
+      #collection-list button.delete-col {
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        font-size: 1em;
+      }
+
+      #clear-all {
+        background: #ef4444;
+        margin-top: 4px;
+      }
+
+      #clear-all:hover {
+        background: #d92b2b;
+      }
+
       .file-controls {
         padding: 16px;
         border-bottom: 1px solid #ddd;
@@ -354,6 +405,13 @@
 
     <div class="container">
       <div class="sidebar" id="sidebar">
+        <div class="collection-controls">
+          <h4>Your Collections</h4>
+          <ul id="collection-list">
+            <li class="empty">No collections yet</li>
+          </ul>
+          <button id="clear-all">Delete All Collections</button>
+        </div>
         <div class="file-controls">
           <h3>ZIP Files</h3>
           <div style="margin: 16px 0">
