@@ -294,9 +294,16 @@ export const AnnotationSystem = (function () {
             // Get position from the selection range
             try {
               const range = selection.getRangeAt(0);
+
+              // Get a more accurate center position for multiline selections
+              const rects = range.getClientRects();
+              const minLeft = Math.min(...[...rects].map((r) => r.left));
+              const maxRight = Math.max(...[...rects].map((r) => r.right));
+              const centerX = (minLeft + maxRight) / 2 + window.scrollX;
+
               const rect = range.getBoundingClientRect();
               const position = {
-                x: rect.right + window.scrollX, // Position popup to the right of the selection
+                x: centerX, // Use the calculated center point
                 y: rect.bottom + window.scrollY, // Position popup below the selection
               };
               this.showAnnotationPopup(selection, position);
