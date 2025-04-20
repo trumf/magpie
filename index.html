@@ -454,50 +454,12 @@
       import {AnnotationSystem} from "./MarkdownAnnotation.js";
       import {ArticleNavigationHelper} from "./ArticleNavigation.js";
       import {setupSwipeNavigation} from "./SwipeNavigation.js";
+      import {
+        refreshCollections,
+        selectCollection,
+      } from "./CollectionsManager.js";
 
-      // 3.1 Refresh & render the list of ZIP imports
-      async function refreshCollections() {
-        const list = document.getElementById("collection-list");
-        list.innerHTML = ""; // clear old
-        const cols = await zipManager.getAllZipFiles();
-        if (cols.length === 0) {
-          list.innerHTML = '<li class="empty">No collections yet</li>';
-          return;
-        }
-        cols.forEach((col) => {
-          const li = document.createElement("li");
-          li.textContent = `${col.name} — ${new Date(
-            col.timestamp
-          ).toLocaleString()}`;
-          li.dataset.id = col.id;
-          // delete button
-          const del = document.createElement("button");
-          del.className = "delete-col";
-          del.textContent = "🗑️";
-          del.addEventListener("click", async (e) => {
-            e.stopPropagation();
-            if (confirm("Delete this collection?")) {
-              await zipManager.deleteZipFile(col.id);
-              if (currentZipId === col.id) {
-                document.getElementById("markdown-content").innerHTML = "";
-                currentZipId = null;
-              }
-              await refreshCollections();
-            }
-          });
-          li.appendChild(del);
-          // select on click
-          li.addEventListener("click", () => selectCollection(col.id));
-          list.appendChild(li);
-        });
-      }
-
-      // 3.2 Select a collection and display its files
-      async function selectCollection(id) {
-        currentZipId = id;
-        const zipData = await zipManager.getZipFileById(id);
-        displayZipContents(zipData);
-      }
+      // Collection management functions are now imported from CollectionsManager.js
 
       // --- Toggle Menu Function ---
       window.toggleMenu = function () {
@@ -572,7 +534,13 @@
           displayZipContents(zipData);
 
           // Refresh the collections list
-          await refreshCollections();
+          await refreshCollections(
+            zipManager,
+            document.getElementById("collection-list"),
+            currentZipId,
+            document.getElementById("markdown-content"),
+            displayZipContents
+          );
 
           // Reset the file input
           zipFileInput.value = "";
@@ -913,7 +881,13 @@
           // --- End Setup Swipe Navigation ---
 
           // Refresh the collections list
-          await refreshCollections();
+          await refreshCollections(
+            zipManager,
+            document.getElementById("collection-list"),
+            currentZipId,
+            document.getElementById("markdown-content"),
+            displayZipContents
+          );
         } catch (error) {
           console.error("Error during initialization:", error);
           showStatus("error", `Initialization failed: ${error.message}`);

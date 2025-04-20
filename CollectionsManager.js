@@ -11,13 +11,15 @@
  * @param {HTMLElement} collectionList - The collection list DOM element
  * @param {number|null} currentZipId - The currently selected ZIP ID
  * @param {HTMLElement} markdownContent - The markdown content DOM element
+ * @param {Function} displayZipContents - Function to display ZIP contents
  * @returns {Promise<void>}
  */
 export async function refreshCollections(
   zipManager,
   collectionList,
   currentZipId,
-  markdownContent
+  markdownContent,
+  displayZipContents
 ) {
   collectionList.innerHTML = ""; // clear old
   const cols = await zipManager.getAllZipFiles();
@@ -50,7 +52,8 @@ export async function refreshCollections(
           zipManager,
           collectionList,
           currentZipId,
-          markdownContent
+          markdownContent,
+          displayZipContents
         );
       }
     });
