@@ -122,15 +122,6 @@
         font-size: 1em;
       }
 
-      #clear-all {
-        background: #ef4444;
-        margin-top: 4px;
-      }
-
-      #clear-all:hover {
-        background: #d92b2b;
-      }
-
       .file-controls {
         padding: 16px;
         border-bottom: 1px solid #ddd;
@@ -410,7 +401,6 @@
           <ul id="collection-list">
             <li class="empty">No collections yet</li>
           </ul>
-          <button id="clear-all">Delete All Collections</button>
         </div>
         <div class="file-controls">
           <h3>ZIP Files</h3>
@@ -464,6 +454,50 @@
       import {AnnotationSystem} from "./MarkdownAnnotation.js";
       import {ArticleNavigationHelper} from "./ArticleNavigation.js";
       import {setupSwipeNavigation} from "./SwipeNavigation.js";
+
+      // 3.1 Refresh & render the list of ZIP imports
+      async function refreshCollections() {
+        const list = document.getElementById("collection-list");
+        list.innerHTML = ""; // clear old
+        const cols = await zipManager.getAllZipFiles();
+        if (cols.length === 0) {
+          list.innerHTML = '<li class="empty">No collections yet</li>';
+          return;
+        }
+        cols.forEach((col) => {
+          const li = document.createElement("li");
+          li.textContent = `${col.name} — ${new Date(
+            col.timestamp
+          ).toLocaleString()}`;
+          li.dataset.id = col.id;
+          // delete button
+          const del = document.createElement("button");
+          del.className = "delete-col";
+          del.textContent = "🗑️";
+          del.addEventListener("click", async (e) => {
+            e.stopPropagation();
+            if (confirm("Delete this collection?")) {
+              await zipManager.deleteZipFile(col.id);
+              if (currentZipId === col.id) {
+                document.getElementById("markdown-content").innerHTML = "";
+                currentZipId = null;
+              }
+              await refreshCollections();
+            }
+          });
+          li.appendChild(del);
+          // select on click
+          li.addEventListener("click", () => selectCollection(col.id));
+          list.appendChild(li);
+        });
+      }
+
+      // 3.2 Select a collection and display its files
+      async function selectCollection(id) {
+        currentZipId = id;
+        const zipData = await zipManager.getZipFileById(id);
+        displayZipContents(zipData);
+      }
 
       // --- Toggle Menu Function ---
       window.toggleMenu = function () {
@@ -536,6 +570,9 @@
 
           // Display the ZIP file contents
           displayZipContents(zipData);
+
+          // Refresh the collections list
+          await refreshCollections();
 
           // Reset the file input
           zipFileInput.value = "";
@@ -874,6 +911,9 @@
             updateSidebarSelection
           );
           // --- End Setup Swipe Navigation ---
+
+          // Refresh the collections list
+          await refreshCollections();
         } catch (error) {
           console.error("Error during initialization:", error);
           showStatus("error", `Initialization failed: ${error.message}`);
