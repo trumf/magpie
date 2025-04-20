@@ -787,11 +787,11 @@ export function showAnnotationPopup(selection, position, onAnnotate) {
     document.body.removeChild(existingPopup);
   }
 
-  // Create a simple popup near the selection end position
+  // Create a simple popup with initial positioning
   const popup = createAnnotationElement("div", "annotation-popup", {
     position: "absolute",
-    left: `${position.x + 10}px`, // Use calculated position
-    top: `${position.y + 5}px`, // Use calculated position
+    left: `${position.x}px`, // Initial position (will be adjusted after measuring)
+    top: `${position.y + 5}px`, // Keep slight offset below the selection
     zIndex: "1000",
     background: "white",
     border: "1px solid #ccc",
@@ -821,6 +821,26 @@ export function showAnnotationPopup(selection, position, onAnnotate) {
 
   popup.appendChild(button);
   document.body.appendChild(popup);
+
+  // Now center the popup horizontally by measuring its width and adjusting position
+  const halfWidth = popup.offsetWidth / 2;
+  popup.style.left = `${position.x - halfWidth}px`;
+
+  // Make sure popup doesn't go off-screen
+  const rightEdge = popup.getBoundingClientRect().right;
+  const viewportWidth = window.innerWidth;
+
+  // If popup extends beyond right edge of viewport, shift it left
+  if (rightEdge > viewportWidth) {
+    popup.style.left = `${
+      parseInt(popup.style.left) - (rightEdge - viewportWidth + 10)
+    }px`;
+  }
+
+  // If popup extends beyond left edge of viewport, shift it right
+  if (parseFloat(popup.style.left) < 10) {
+    popup.style.left = "10px";
+  }
 
   // Close popup when clicking elsewhere
   function handleClickOutside(e) {
