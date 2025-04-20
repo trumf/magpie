@@ -486,13 +486,19 @@ export function showMobileAnnotationForm(element, callbacks) {
   });
   saveButton.textContent = "Save";
 
-  // Add event listeners
-  cancelButton.addEventListener("click", () => {
+  // Function to clean up and close the form
+  const closeForm = () => {
     form.classList.remove("visible");
-    setTimeout(() => form.remove(), 300);
     element.classList.remove("temp-selected");
+    if (handleOutsideClick) {
+      document.removeEventListener("pointerdown", handleOutsideClick);
+    }
+    setTimeout(() => form.remove(), 300);
     callbacks.cancel();
-  });
+  };
+
+  // Add event listeners
+  cancelButton.addEventListener("click", closeForm);
 
   saveButton.addEventListener("click", () => {
     const annotationText = textarea.value.trim();
@@ -528,6 +534,11 @@ export function showMobileAnnotationForm(element, callbacks) {
       // Remove selection highlight
       element.classList.remove("temp-selected");
 
+      // Remove outside click handler
+      if (handleOutsideClick) {
+        document.removeEventListener("pointerdown", handleOutsideClick);
+      }
+
       // Show confirmation
       callbacks.showStatusIndicator("Annotation saved!");
     } else {
@@ -553,6 +564,22 @@ export function showMobileAnnotationForm(element, callbacks) {
 
   // Focus the textarea
   setTimeout(() => textarea.focus(), 300);
+
+  // Add outside click handler to close the form
+  let handleOutsideClick;
+
+  // Wait a tick to set up the click outside handler to prevent immediate closing
+  setTimeout(() => {
+    handleOutsideClick = (e) => {
+      // If the click is outside the form, close it
+      if (form && !form.contains(e.target) && e.target !== element) {
+        closeForm();
+      }
+    };
+
+    // Use pointerdown to handle both touch and mouse events
+    document.addEventListener("pointerdown", handleOutsideClick);
+  }, 100); // Small delay to prevent immediate triggering
 }
 
 /**

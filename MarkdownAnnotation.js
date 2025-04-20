@@ -23,8 +23,6 @@ export const AnnotationSystem = (function () {
   let storage = null;
   let currentFileId = null;
   let currentFilePath = null;
-  let isAnnotationMode = false;
-  let mobileAnnotationBtn = null;
   let allTagsCache = []; // Cache for tags to reduce DB lookups
 
   // Check if the client is using a mobile device
@@ -828,90 +826,24 @@ export const AnnotationSystem = (function () {
       // Add mobile-specific styles
       initMobileAnnotationStyles();
 
-      // Remove existing button if present
-      if (mobileAnnotationBtn && mobileAnnotationBtn.parentNode) {
-        mobileAnnotationBtn.parentNode.removeChild(mobileAnnotationBtn);
-      }
-
-      // Create the annotation mode toggle button
-      mobileAnnotationBtn = document.createElement("button");
-      mobileAnnotationBtn.textContent = "📝";
-      mobileAnnotationBtn.className = "mobile-annotation-btn";
-      Object.assign(mobileAnnotationBtn.style, {
-        background: "transparent",
-        color: "#333",
-        border: "none",
-        padding: "10px",
-        cursor: "pointer",
-        fontSize: "20px",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-      });
-
-      // Add toggle annotation mode functionality
-      mobileAnnotationBtn.addEventListener("click", () => {
-        isAnnotationMode = !isAnnotationMode;
-
-        // Toggle annotation mode class on body
-        if (isAnnotationMode) {
-          document.body.classList.add("annotation-mode");
-          // Show status indicator
-          showStatusIndicator("Annotation Mode: ON");
-          mobileAnnotationBtn.style.color = "#fbbc05"; // Visual feedback
-        } else {
-          document.body.classList.remove("annotation-mode");
-          showStatusIndicator("Annotation Mode: OFF");
-          mobileAnnotationBtn.style.color = "#333";
-        }
-      });
-
-      // Add click handler for paragraphs and headings
+      // Only open a new panel if none is already open
       currentDocument.addEventListener("click", (e) => {
-        if (!isAnnotationMode) return;
+        // If a panel exists, do nothing here (outside handler will close it)
+        if (document.querySelector(".mobile-annotation-form")) return;
 
-        // Find the closest paragraph or heading element
         const targetElem = e.target.closest("p, h1, h2, h3, h4, h5, h6");
-        if (targetElem) {
-          // Remove any previous temp selections
-          document.querySelectorAll(".temp-selected").forEach((el) => {
-            el.classList.remove("temp-selected");
-          });
+        if (!targetElem) return;
 
-          // Add the temp-selected class to highlight
-          targetElem.classList.add("temp-selected");
-
-          // Show mobile annotation form
-          this.showMobileAnnotationForm(targetElem);
-        }
+        // Highlight and open _only_ when no panel is open
+        document
+          .querySelectorAll(".temp-selected")
+          .forEach((el) => el.classList.remove("temp-selected"));
+        targetElem.classList.add("temp-selected");
+        this.showMobileAnnotationForm(targetElem);
       });
 
-      // Find the mobile header right section and append the button there
-      const mobileHeaderRight = document.querySelector(".mobile-header-right");
-      if (mobileHeaderRight) {
-        mobileHeaderRight.appendChild(mobileAnnotationBtn);
-      } else {
-        // Fallback to body if mobile header is not found
-        console.warn(
-          "Mobile header not found, appending annotation button to body"
-        );
-        // Set position fixed styles for fallback
-        Object.assign(mobileAnnotationBtn.style, {
-          position: "fixed",
-          bottom: "20px",
-          right: "20px",
-          backgroundColor: "#4285f4",
-          color: "white",
-          border: "none",
-          borderRadius: "50%",
-          width: "60px",
-          height: "60px",
-          fontSize: "16px",
-          boxShadow: "0 4px 8px rgba(0,0,0,0.2)",
-          zIndex: "100",
-        });
-        document.body.appendChild(mobileAnnotationBtn);
-      }
+      // Show an initial status indicator to let the user know annotation mode is active
+      showStatusIndicator("Tap any text to annotate");
     },
 
     /**
