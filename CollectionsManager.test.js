@@ -13,6 +13,8 @@ describe("CollectionsManager", () => {
   let mockMarkdownContent;
   let mockDisplayZipContents;
   let mockConfirm;
+  let mockCollectionContainer;
+  let mockCollectionToggle;
 
   beforeEach(() => {
     // Mock DOM elements
@@ -24,6 +26,27 @@ describe("CollectionsManager", () => {
     mockMarkdownContent = {
       innerHTML: "",
     };
+
+    // Mock container and toggle
+    mockCollectionContainer = {
+      classList: {
+        contains: jest.fn().mockReturnValue(false),
+        remove: jest.fn(),
+      },
+    };
+
+    mockCollectionToggle = {
+      classList: {
+        remove: jest.fn(),
+      },
+    };
+
+    // Mock getElementById for the container and toggle
+    document.getElementById = jest.fn().mockImplementation((id) => {
+      if (id === "collection-list-container") return mockCollectionContainer;
+      if (id === "collections-toggle") return mockCollectionToggle;
+      return null;
+    });
 
     // Mock zipManager and its methods
     mockZipManager = {
@@ -64,6 +87,7 @@ describe("CollectionsManager", () => {
     test('should show "No collections yet" when there are no collections', async () => {
       // Arrange
       mockZipManager.getAllZipFiles.mockResolvedValue([]);
+      mockCollectionContainer.classList.contains.mockReturnValue(true);
 
       // Act
       await refreshCollections(
@@ -77,6 +101,34 @@ describe("CollectionsManager", () => {
       // Assert
       expect(mockZipManager.getAllZipFiles).toHaveBeenCalled();
       expect(mockCollectionList.innerHTML).toContain("No collections yet");
+      expect(mockCollectionContainer.classList.remove).toHaveBeenCalledWith(
+        "collapsed"
+      );
+      expect(mockCollectionToggle.classList.remove).toHaveBeenCalledWith(
+        "collapsed"
+      );
+    });
+
+    test("should not remove collapsed class if container is not collapsed", async () => {
+      // Arrange
+      mockZipManager.getAllZipFiles.mockResolvedValue([]);
+      mockCollectionContainer.classList.contains.mockReturnValue(false);
+
+      // Act
+      await refreshCollections(
+        mockZipManager,
+        mockCollectionList,
+        null,
+        mockMarkdownContent,
+        mockDisplayZipContents
+      );
+
+      // Assert
+      expect(mockCollectionContainer.classList.contains).toHaveBeenCalledWith(
+        "collapsed"
+      );
+      expect(mockCollectionContainer.classList.remove).not.toHaveBeenCalled();
+      expect(mockCollectionToggle.classList.remove).not.toHaveBeenCalled();
     });
 
     test("should create list items for each collection", async () => {

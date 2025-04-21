@@ -97,6 +97,34 @@
         margin: 16px 0;
       }
 
+      .collections-toggle {
+        cursor: pointer;
+        margin-left: 8px;
+        user-select: none;
+        font-size: 0.8em;
+        color: #666;
+        width: 16px;
+        height: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        transition: 0.2s ease;
+      }
+
+      .collections-toggle::before {
+        content: "▼";
+        display: inline-block;
+        transition: transform 0.2s;
+      }
+
+      .collections-toggle.collapsed::before {
+        transform: rotate(-90deg);
+      }
+
+      .collection-list-container.collapsed #collection-list {
+        display: none;
+      }
+
       #collection-list {
         list-style: none;
         padding: 0;
@@ -406,16 +434,21 @@
       <div class="sidebar" id="sidebar">
         <div class="collection-controls">
           <div class="collection-heading">
-            <h4>Your Collections</h4>
+            <h4>
+              Your Collections
+              <span class="collections-toggle" id="collections-toggle"></span>
+            </h4>
             <label class="file-input-button">
               Import ZIP
               <input type="file" id="zip-file-input" accept=".zip" />
             </label>
           </div>
 
-          <ul id="collection-list">
-            <li class="empty">No collections yet</li>
-          </ul>
+          <div class="collection-list-container" id="collection-list-container">
+            <ul id="collection-list">
+              <li class="empty">No collections yet</li>
+            </ul>
+          </div>
         </div>
         <div class="nav-links">
           <a href="AnnotationPage.html" class="nav-link">
@@ -472,6 +505,32 @@
         document.getElementById("overlay").classList.toggle("active");
       };
       // --- End Toggle Menu Function ---
+
+      // --- Toggle Collections Function ---
+      document
+        .getElementById("collections-toggle")
+        .addEventListener("click", function () {
+          this.classList.toggle("collapsed");
+          document
+            .getElementById("collection-list-container")
+            .classList.toggle("collapsed");
+
+          // Save preference in localStorage
+          const isCollapsed = this.classList.contains("collapsed");
+          localStorage.setItem("collections_collapsed", isCollapsed);
+        });
+
+      // Check saved preference
+      const savedCollapsedState = localStorage.getItem("collections_collapsed");
+      if (savedCollapsedState === "true") {
+        document
+          .getElementById("collections-toggle")
+          .classList.add("collapsed");
+        document
+          .getElementById("collection-list-container")
+          .classList.add("collapsed");
+      }
+      // --- End Toggle Collections Function ---
 
       // Initialize the ZipFileManager
       const zipManager = new ZipFileManager({
