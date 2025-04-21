@@ -26,6 +26,14 @@ export async function refreshCollections(
 
   if (cols.length === 0) {
     collectionList.innerHTML = '<li class="empty">No collections yet</li>';
+    // Make sure container is visible if empty to show the "No collections" message
+    const container = document.getElementById("collection-list-container");
+    if (container.classList.contains("collapsed")) {
+      container.classList.remove("collapsed");
+      document
+        .getElementById("collections-toggle")
+        .classList.remove("collapsed");
+    }
     return;
   }
 
