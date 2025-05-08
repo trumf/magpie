@@ -1,0 +1,401 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
+    Ubuntu, Cantarell, "Open Sans", "Helvetica Neue", sans-serif;
+  line-height: 1.6;
+  color: #333;
+  padding: 20px;
+}
+
+.container {
+  display: flex;
+  height: calc(100vh - 40px);
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.sidebar {
+  width: 300px;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+  background-color: #f5f5f5;
+  flex-shrink: 0;
+  transition: transform 0.3s ease;
+  z-index: 1000;
+}
+
+.main-content {
+  flex: 1;
+  overflow: auto;
+  padding: 20px;
+  transition: margin-left 0.3s ease;
+  transition: opacity 0.15s ease-out;
+}
+
+/* Add styles to handle long words in article content */
+.main-content {
+  /* Break long words */
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  hyphens: auto;
+
+  /* Ensure content doesn't cause horizontal overflow */
+  max-width: 100%;
+}
+
+/* Target links, pre, and code elements specifically */
+.main-content a,
+.main-content pre,
+.main-content code {
+  word-break: break-all; /* More aggressive breaking for URLs and code */
+  max-width: 100%;
+  white-space: pre-wrap; /* For code blocks to wrap properly */
+}
+
+/* Ensure all images are responsive and don't overflow */
+.main-content img {
+  max-width: 100%;
+  height: auto;
+}
+
+.collection-controls {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  background: #fafafa;
+}
+
+.collection-controls h4 {
+  font-size: 16px;
+}
+
+.collection-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin: 16px 0;
+}
+
+.collections-toggle {
+  cursor: pointer;
+  margin-left: 8px;
+  user-select: none;
+  font-size: 0.8em;
+  color: #666;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s ease;
+}
+
+.collections-toggle::before {
+  content: "▼";
+  display: inline-block;
+  transition: transform 0.2s;
+}
+
+.collections-toggle.collapsed::before {
+  transform: rotate(-90deg);
+}
+
+.collection-list-container.collapsed #collection-list {
+  display: none;
+}
+
+#collection-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 12px 0;
+}
+
+#collection-list li {
+  padding: 6px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#collection-list li:hover {
+  background: #e0e0e0;
+}
+
+#collection-list li.empty {
+  color: #666;
+  cursor: default;
+}
+
+#collection-list button.delete-col {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 1em;
+}
+
+.file-controls {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  background-color: #eee;
+  display: flex;
+  align-items: center;
+}
+
+.file-list {
+  flex: 1;
+  overflow: auto;
+  padding: 10px;
+}
+
+.file-item {
+  padding: 8px 12px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin-bottom: 4px;
+  transition: background-color 0.2s;
+}
+
+.file-item:hover {
+  background-color: #e0e0e0;
+}
+
+.file-item.active {
+  background-color: #d0d0d0;
+  font-weight: bold;
+}
+
+.file-item.read {
+  color: #666;
+}
+
+.file-item.read::before {
+  content: "✓ ";
+  color: #0366d6;
+}
+
+.file-item.unread::before {
+  content: "○ ";
+  color: #666;
+}
+
+.md-file {
+  color: #0366d6;
+}
+
+.status {
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+}
+
+.status.success {
+  background-color: #d4edda;
+  color: #155724;
+  border: 1px solid #c3e6cb;
+}
+
+.status.error {
+  background-color: #f8d7da;
+  color: #721c24;
+  border: 1px solid #f5c6cb;
+}
+
+.status.info {
+  background-color: #d1ecf1;
+  color: #0c5460;
+  border: 1px solid #bee5eb;
+}
+
+button,
+.file-input-button {
+  background-color: #0366d6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+button:hover,
+.file-input-button:hover {
+  background-color: #0358c1;
+}
+
+input[type="file"] {
+  display: none;
+}
+
+.zip-info {
+  margin-bottom: 10px;
+  font-size: 14px;
+  color: #666;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}
+
+.empty-state p {
+  margin: 10px 0;
+}
+
+/* Annotation Specific Styles */
+.annotation-highlight {
+  background-color: rgba(255, 255, 0, 0.3);
+  cursor: pointer;
+}
+
+.annotation-highlight:hover {
+  background-color: rgba(255, 255, 0, 0.5);
+}
+
+.annotation-item {
+  background-color: #f9f9f9;
+  transition: background-color 0.2s;
+}
+
+.annotation-item:hover {
+  background-color: #f0f0f0;
+}
+
+/* Navigation links */
+.nav-links {
+  padding: 16px;
+  border-bottom: 1px solid #ddd;
+  background-color: #eee;
+}
+
+.nav-link {
+  display: block;
+  padding: 8px 12px;
+  margin-bottom: 4px;
+  color: #0366d6;
+  text-decoration: none;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+}
+
+.nav-link:hover {
+  background-color: #e0e0e0;
+  text-decoration: none;
+}
+
+.nav-link i {
+  margin-right: 8px;
+}
+
+/* --- Mobile Header --- */
+.mobile-header {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background-color: #f5f5f5;
+  border-bottom: 1px solid #ddd;
+  z-index: 1050;
+  padding: 0 15px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mobile-header-left {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-header-right {
+  display: flex;
+  align-items: center;
+}
+
+.mobile-header-title {
+  margin-left: 15px;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+.mobile-menu-toggle {
+  background: transparent;
+  color: #333;
+  border: none;
+  padding: 10px;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* --- Responsive Sidebar Styles --- */
+.menu-toggle {
+  display: none;
+}
+
+.overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 999;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 10px;
+    padding-top: 70px; /* Add space for mobile header */
+  }
+
+  .mobile-header {
+    display: flex;
+  }
+
+  .container {
+    height: calc(100vh - 80px);
+  }
+
+  .sidebar {
+    position: fixed;
+    left: 0;
+    top: 60px; /* Position below mobile header */
+    height: calc(100% - 60px); /* Adjust height to account for header */
+    transform: translateX(-100%);
+    transition: transform 0.3s ease;
+    z-index: 1000;
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .overlay.active {
+    display: block;
+  }
+
+  .menu-toggle {
+    display: none; /* Hide original menu toggle */
+  }
+}
+/* --- End Responsive Sidebar Styles --- */

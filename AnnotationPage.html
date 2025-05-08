@@ -259,6 +259,9 @@
       const tagFilter = document.getElementById("tag-filter");
       const applyTagFilterBtn = document.getElementById("apply-tag-filter");
 
+      // Track currently displayed annotations
+      let currentlyDisplayedAnnotations = [];
+
       // Event handlers
       searchBtn.addEventListener("click", handleSearch);
       searchInput.addEventListener("keyup", (event) => {
@@ -423,14 +426,17 @@
         }
       }
 
-      // Handle export
+      // Handle export - UPDATED to use currently displayed annotations
       async function handleExport() {
         try {
-          await annotationViewer.initialize();
-          const annotations = await annotationViewer.getAllAnnotations();
+          // Check if there are any annotations to export
+          if (currentlyDisplayedAnnotations.length === 0) {
+            showError("No annotations currently displayed to export.");
+            return;
+          }
 
-          // Create a JSON blob and trigger download
-          const data = JSON.stringify(annotations, null, 2);
+          // Use the currently displayed annotations instead of fetching all
+          const data = JSON.stringify(currentlyDisplayedAnnotations, null, 2);
           const blob = new Blob([data], {type: "application/json"});
           const url = URL.createObjectURL(blob);
 
@@ -449,8 +455,11 @@
         }
       }
 
-      // Render annotations to the container
+      // Render annotations to the container - UPDATED to store currently displayed annotations
       function renderAnnotations(annotations) {
+        // Store the currently displayed annotations
+        currentlyDisplayedAnnotations = annotations;
+
         annotationViewer.renderAnnotationsToElement(
           annotations,
           annotationContainer
