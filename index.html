@@ -53,6 +53,70 @@
             <i>📝</i> View All Annotations
           </a>
         </div>
+
+        <!-- Filter Controls - New Section -->
+        <div class="filter-controls">
+          <!-- View Toggle Buttons -->
+          <div class="view-toggle">
+            <button id="view-articles-btn" class="view-toggle-btn active">
+              Articles
+            </button>
+            <button id="view-annotations-btn" class="view-toggle-btn">
+              Annotations
+            </button>
+          </div>
+
+          <!-- Sort Pills -->
+          <div class="sort-pills">
+            <button data-sort="recency" class="sort-pill active">Recent</button>
+            <button data-sort="alphabet" class="sort-pill">A-Z</button>
+            <button data-sort="unread_first" class="sort-pill">Unread</button>
+            <button
+              data-sort="annotations"
+              class="sort-pill"
+              id="annotations-sort-pill"
+            >
+              Most Annotated
+            </button>
+          </div>
+
+          <!-- Tag Filter -->
+          <div class="tag-filter">
+            <div class="tag-dropdown-wrapper">
+              <label for="tag-dropdown-btn">Filter by tag:</label>
+              <div class="tag-dropdown-container">
+                <button id="tag-dropdown-btn">
+                  <span id="tag-dropdown-text">Select a tag</span>
+                  <span class="dropdown-arrow">▼</span>
+                </button>
+                <div
+                  id="tag-dropdown-list"
+                  class="tag-dropdown-list"
+                  style="display: none"
+                >
+                  <!-- Tags will be populated here by JS -->
+                  <div class="tag-option" data-tag="">All Tags</div>
+                  <!-- Other tags will be added dynamically -->
+                </div>
+              </div>
+              <button
+                id="clear-tags-btn"
+                class="clear-tags-btn"
+                style="display: none"
+              >
+                Clear
+              </button>
+            </div>
+
+            <!-- Selected Tags Area -->
+            <div
+              id="selected-tags-container"
+              class="selected-tags-container"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Original File Controls - Keep for compatibility -->
         <div class="file-controls">
           <label for="sort-order" style="width: 100%">Sort by:</label>
           <select id="sort-order" style="padding: 5px; width: 100%">
@@ -149,6 +213,11 @@
       let selectedFile = null;
       let articleNavigator = null;
 
+      // Tag filtering state
+      let allUniqueTags = [];
+      let selectedTags = [];
+      let viewMode = "articles"; // 'articles' or 'annotations'
+
       // DOM elements
       const zipFileInput = document.getElementById("zip-file-input");
       const fileListElement = document.getElementById("file-list");
@@ -156,11 +225,268 @@
         document.getElementById("markdown-content");
       const sortOrderSelect = document.getElementById("sort-order");
 
+      // New UI elements
+      const viewArticlesBtn = document.getElementById("view-articles-btn");
+      const viewAnnotationsBtn = document.getElementById(
+        "view-annotations-btn"
+      );
+      const sortPills = document.querySelectorAll(".sort-pill");
+      const tagDropdownBtn = document.getElementById("tag-dropdown-btn");
+      const tagDropdownText = document.getElementById("tag-dropdown-text");
+      const tagDropdownList = document.getElementById("tag-dropdown-list");
+      const clearTagsBtn = document.getElementById("clear-tags-btn");
+      const selectedTagsContainer = document.getElementById(
+        "selected-tags-container"
+      );
+      const annotationsSortPill = document.getElementById(
+        "annotations-sort-pill"
+      );
+
       // Event handlers
       zipFileInput.addEventListener("change", handleZipFileUpload);
 
       // Add event listener for sort order changes
       sortOrderSelect.addEventListener("change", handleSortOrderChange);
+
+      // Event listeners for tag filtering UI
+      viewArticlesBtn.addEventListener("click", () => setViewMode("articles"));
+      viewAnnotationsBtn.addEventListener("click", () =>
+        setViewMode("annotations")
+      );
+
+      // Sort pills click handlers
+      sortPills.forEach((pill) => {
+        pill.addEventListener("click", () => {
+          const sortValue = pill.getAttribute("data-sort");
+          setSortMethod(sortValue);
+        });
+      });
+
+      // Tag dropdown toggle
+      tagDropdownBtn.addEventListener("click", () => {
+        const isOpen = tagDropdownList.style.display === "block";
+        tagDropdownList.style.display = isOpen ? "none" : "block";
+
+        // Toggle dropdown arrow direction
+        const dropdownArrow = tagDropdownBtn.querySelector(".dropdown-arrow");
+        if (dropdownArrow) {
+          dropdownArrow.classList.toggle("open", !isOpen);
+        }
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener("click", (e) => {
+        if (
+          !tagDropdownBtn.contains(e.target) &&
+          !tagDropdownList.contains(e.target)
+        ) {
+          tagDropdownList.style.display = "none";
+
+          // Reset arrow direction
+          const dropdownArrow = tagDropdownBtn.querySelector(".dropdown-arrow");
+          if (dropdownArrow) {
+            dropdownArrow.classList.remove("open");
+          }
+        }
+      });
+
+      // Clear tags button
+      clearTagsBtn.addEventListener("click", clearSelectedTags);
+
+      // Set view mode between articles and annotations
+      function setViewMode(mode) {
+        viewMode = mode;
+
+        // Update UI
+        viewArticlesBtn.classList.toggle("active", mode === "articles");
+        viewAnnotationsBtn.classList.toggle("active", mode === "annotations");
+
+        // Show/hide annotations sort pill based on view mode
+        annotationsSortPill.style.display =
+          mode === "annotations" ? "inline-block" : "none";
+
+        // Refresh the file list
+        if (currentZipId !== null) {
+          zipManager
+            .getZipFileById(currentZipId)
+            .then((zipData) => {
+              displayZipContents(zipData);
+            })
+            .catch((error) => {
+              console.error("Error refreshing ZIP contents:", error);
+            });
+        }
+      }
+
+      // Set sort method
+      function setSortMethod(method) {
+        // Update sort-order select to match for backwards compatibility
+        if (method === "recency") {
+          sortOrderSelect.value = "read_date";
+        } else if (method === "alphabet") {
+          sortOrderSelect.value = "alphabet";
+        } else if (method === "unread_first") {
+          sortOrderSelect.value = "unread_first";
+        } else if (method === "annotations") {
+          // This is a new sort option not in the original select
+          sortOrderSelect.value = "read_date"; // fallback to something reasonable
+        }
+
+        // Update UI
+        sortPills.forEach((pill) => {
+          pill.classList.toggle(
+            "active",
+            pill.getAttribute("data-sort") === method
+          );
+        });
+
+        // Save preference and refresh display
+        localStorage.setItem("md_file_sort_order", sortOrderSelect.value);
+
+        // Refresh the file list
+        if (currentZipId !== null) {
+          zipManager
+            .getZipFileById(currentZipId)
+            .then((zipData) => {
+              displayZipContents(zipData);
+            })
+            .catch((error) => {
+              console.error("Error refreshing ZIP contents:", error);
+            });
+        }
+      }
+
+      // Toggle or select a tag
+      function handleTagSelection(tag, toggle = false) {
+        if (toggle) {
+          // Toggle the tag (add if not present, remove if present)
+          if (selectedTags.includes(tag)) {
+            selectedTags = selectedTags.filter((t) => t !== tag);
+          } else {
+            selectedTags.push(tag);
+          }
+        } else {
+          // Set to just this one tag
+          selectedTags = tag ? [tag] : [];
+        }
+
+        // Update UI
+        updateTagUI();
+
+        // Hide dropdown after selection
+        tagDropdownList.style.display = "none";
+        const dropdownArrow = tagDropdownBtn.querySelector(".dropdown-arrow");
+        if (dropdownArrow) {
+          dropdownArrow.classList.remove("open");
+        }
+
+        // Refresh the file list
+        if (currentZipId !== null) {
+          zipManager
+            .getZipFileById(currentZipId)
+            .then((zipData) => {
+              displayZipContents(zipData);
+            })
+            .catch((error) => {
+              console.error("Error refreshing ZIP contents:", error);
+            });
+        }
+      }
+
+      // Clear all selected tags
+      function clearSelectedTags() {
+        selectedTags = [];
+        updateTagUI();
+
+        // Refresh the file list
+        if (currentZipId !== null) {
+          zipManager
+            .getZipFileById(currentZipId)
+            .then((zipData) => {
+              displayZipContents(zipData);
+            })
+            .catch((error) => {
+              console.error("Error refreshing ZIP contents:", error);
+            });
+        }
+      }
+
+      // Update tag UI (selected tags, dropdown text, clear button visibility)
+      function updateTagUI() {
+        // Update dropdown text
+        tagDropdownText.textContent =
+          selectedTags.length > 0
+            ? `${selectedTags.length} tag${
+                selectedTags.length !== 1 ? "s" : ""
+              } selected`
+            : "Select a tag";
+
+        // Show/hide clear button
+        clearTagsBtn.style.display = selectedTags.length > 0 ? "block" : "none";
+
+        // Render selected tags as pills
+        selectedTagsContainer.innerHTML = "";
+        selectedTags.forEach((tag) => {
+          const tagPill = document.createElement("span");
+          tagPill.className = "tag-pill";
+
+          // Tag text
+          const tagText = document.createTextNode(tag);
+          tagPill.appendChild(tagText);
+
+          // Remove button
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "remove-tag";
+          removeBtn.textContent = "×";
+          removeBtn.addEventListener("click", () =>
+            handleTagSelection(tag, true)
+          );
+          tagPill.appendChild(removeBtn);
+
+          selectedTagsContainer.appendChild(tagPill);
+        });
+      }
+
+      // Extract all unique tags from a list of files
+      function extractUniqueTags(files) {
+        // Start with ZIP name as a tag if available
+        const zipNameTag =
+          currentZipId && zipManager.getZipNameById
+            ? zipManager.getZipNameById(currentZipId)
+            : null;
+
+        const allTags = new Set();
+
+        // Add ZIP name as a tag if it exists and is valid
+        if (
+          zipNameTag &&
+          typeof zipNameTag === "string" &&
+          zipNameTag.trim() !== ""
+        ) {
+          // Clean up name (remove extension, replace non-alphanumeric with dash)
+          const cleanZipName = zipNameTag
+            .replace(/\.zip$/i, "")
+            .replace(/[^a-z0-9]/gi, "-")
+            .toLowerCase();
+
+          if (cleanZipName.trim() !== "") {
+            allTags.add(cleanZipName);
+          }
+        }
+
+        // Extract tags from each file
+        files.forEach((file) => {
+          if (file.tags && Array.isArray(file.tags)) {
+            file.tags.forEach((tag) => {
+              if (tag && typeof tag === "string" && tag.trim() !== "") {
+                allTags.add(tag.trim());
+              }
+            });
+          }
+        });
+
+        return [...allTags].sort();
+      }
 
       // Handle sort order changes
       function handleSortOrderChange() {
@@ -232,6 +558,15 @@
           return lowerPath.endsWith(".md") || lowerPath.endsWith(".markdown");
         });
 
+        // Extract all unique tags from the files
+        allUniqueTags = extractUniqueTags(mdFiles);
+
+        // Populate the tag dropdown
+        populateTagDropdown(allUniqueTags);
+
+        // Update the tag UI based on selected tags
+        updateTagUI();
+
         // Get current sort order from dropdown or localStorage
         const sortOrderSelect = document.getElementById("sort-order");
         const savedSortOrder = localStorage.getItem("md_file_sort_order");
@@ -244,14 +579,58 @@
         // Get current selected sort order
         const sortOrder = sortOrderSelect.value;
 
-        // Apply sorting using ZipFileManager
-        const sortedFiles = zipManager.sortFilesByReadStatus(
-          mdFiles,
-          sortOrder
-        );
+        // Filter files based on selected tags and view mode
+        let filteredFiles = mdFiles;
 
-        // Initialize the article navigator with sorted files
-        articleNavigator = new ArticleNavigationHelper(sortedFiles);
+        // Apply tag filtering if we have selected tags
+        if (selectedTags.length > 0) {
+          filteredFiles = filteredFiles.filter((file) => {
+            // Check if file has tags
+            if (!file.tags || !Array.isArray(file.tags)) {
+              return false;
+            }
+
+            // File must have ALL selected tags to be included
+            return selectedTags.every((tag) => file.tags.includes(tag));
+          });
+        }
+
+        // Apply view mode filtering
+        if (viewMode === "annotations") {
+          filteredFiles = filteredFiles.filter((file) => {
+            // If we know the annotations count, use it
+            if (typeof file.annotations === "number") {
+              return file.annotations > 0;
+            }
+
+            // Otherwise, assume all files might have annotations for now
+            return true;
+          });
+        }
+
+        // Apply additional sorting for annotations if needed
+        if (
+          viewMode === "annotations" &&
+          document.querySelector('.sort-pill[data-sort="annotations"].active')
+        ) {
+          // Sort by annotation count if we have that data
+          filteredFiles.sort((a, b) => {
+            const aCount =
+              typeof a.annotations === "number" ? a.annotations : 0;
+            const bCount =
+              typeof b.annotations === "number" ? b.annotations : 0;
+            return bCount - aCount; // Descending order
+          });
+        } else {
+          // Apply standard sorting using ZipFileManager
+          filteredFiles = zipManager.sortFilesByReadStatus(
+            filteredFiles,
+            sortOrder
+          );
+        }
+
+        // Initialize the article navigator with filtered files
+        articleNavigator = new ArticleNavigationHelper(filteredFiles);
 
         // --- Re-Setup Swipe Navigation with the new navigator ---
         setupSwipeNavigation(
@@ -263,8 +642,8 @@
         // --- End Re-Setup ---
 
         // Create file items for each markdown file
-        if (sortedFiles.length > 0) {
-          sortedFiles.forEach((file) => {
+        if (filteredFiles.length > 0) {
+          filteredFiles.forEach((file) => {
             const fileItem = document.createElement("div");
             fileItem.className = "file-item md-file";
 
@@ -275,8 +654,56 @@
               fileItem.classList.add("unread");
             }
 
-            // Use the displayName if available, otherwise fall back to path
-            fileItem.textContent = file.displayName || file.path;
+            // Create a container for file title
+            const fileTitle = document.createElement("div");
+            fileTitle.className = "file-title";
+            fileTitle.textContent = file.displayName || file.path;
+            fileItem.appendChild(fileTitle);
+
+            // Display tags if available
+            if (file.tags && Array.isArray(file.tags) && file.tags.length > 0) {
+              const tagsContainer = document.createElement("div");
+              tagsContainer.className = "file-item-tags";
+
+              // Limit to first 3 tags to avoid clutter
+              const displayTags = file.tags.slice(0, 3);
+              displayTags.forEach((tag) => {
+                const tagElement = document.createElement("span");
+                tagElement.className = "file-item-tag";
+                // Add active class if this tag is in selectedTags
+                if (selectedTags.includes(tag)) {
+                  tagElement.classList.add("active");
+                }
+                tagElement.textContent = tag;
+                tagElement.addEventListener("click", (e) => {
+                  e.stopPropagation(); // Don't trigger file selection
+                  handleTagSelection(tag, true); // Toggle this tag
+                });
+                tagsContainer.appendChild(tagElement);
+              });
+
+              // Add "+" indicator if there are more tags
+              if (file.tags.length > 3) {
+                const moreIndicator = document.createElement("span");
+                moreIndicator.className = "file-item-more-tags";
+                moreIndicator.textContent = `+${file.tags.length - 3}`;
+                tagsContainer.appendChild(moreIndicator);
+              }
+
+              fileItem.appendChild(tagsContainer);
+            }
+
+            // Display annotations count if in annotations mode
+            if (
+              viewMode === "annotations" &&
+              typeof file.annotations === "number" &&
+              file.annotations > 0
+            ) {
+              const annotCount = document.createElement("span");
+              annotCount.className = "annotation-count";
+              annotCount.textContent = file.annotations;
+              fileItem.appendChild(annotCount);
+            }
 
             // Store the original path for file identification
             fileItem.dataset.path = file.path;
@@ -314,27 +741,83 @@
             fileListElement.appendChild(fileItem);
           });
         } else {
-          const noMdElement = document.createElement("div");
-          noMdElement.className = "empty-state";
-          noMdElement.innerHTML = "<p>No markdown files found in this ZIP</p>";
-          fileListElement.appendChild(noMdElement);
+          // Display empty state for filtered results
+          const emptyElement = document.createElement("div");
+          emptyElement.className = "empty-filter-results";
+
+          // Icon (book or pencil based on view mode)
+          const icon = document.createElement("div");
+          icon.className = "icon";
+          icon.textContent = viewMode === "annotations" ? "📝" : "📚";
+          emptyElement.appendChild(icon);
+
+          // Title
+          const title = document.createElement("h3");
+          title.textContent =
+            viewMode === "annotations"
+              ? "No annotations found"
+              : selectedTags.length > 0
+              ? "No matching files found"
+              : "No markdown files found";
+          emptyElement.appendChild(title);
+
+          // Action hint
+          if (selectedTags.length > 0) {
+            const action = document.createElement("p");
+            action.textContent = "Try adjusting your tag filters";
+            action.className = "action-hint";
+            emptyElement.appendChild(action);
+
+            // Add clear filters button
+            const clearBtn = document.createElement("button");
+            clearBtn.textContent = "Clear Filters";
+            clearBtn.className = "clear-filters-btn";
+            clearBtn.addEventListener("click", clearSelectedTags);
+            emptyElement.appendChild(clearBtn);
+          } else if (mdFiles.length === 0) {
+            const action = document.createElement("p");
+            action.textContent = "No markdown files found in this ZIP";
+            action.className = "action-hint";
+            emptyElement.appendChild(action);
+          }
+
+          fileListElement.appendChild(emptyElement);
         }
       }
 
-      // --- Helper for Sidebar Update on Swipe ---
-      function updateSidebarSelection(article) {
-        const fileItem = document.querySelector(
-          `.file-item[data-path="${article.path}"]`
+      // Populate the tag dropdown with available tags
+      function populateTagDropdown(tags) {
+        // Clear existing tags, but keep the "All Tags" option
+        const allTagsOption = tagDropdownList.querySelector(
+          '.tag-option[data-tag=""]'
         );
-        if (fileItem) {
-          document.querySelectorAll(".file-item").forEach((item) => {
-            item.classList.remove("active");
-          });
-          fileItem.classList.add("active");
-          fileItem.scrollIntoView({block: "nearest"});
+        tagDropdownList.innerHTML = "";
+        if (allTagsOption) {
+          tagDropdownList.appendChild(allTagsOption);
+        } else {
+          const newAllTagsOption = document.createElement("div");
+          newAllTagsOption.className = "tag-option";
+          newAllTagsOption.setAttribute("data-tag", "");
+          newAllTagsOption.textContent = "All Tags";
+          newAllTagsOption.addEventListener("click", () =>
+            handleTagSelection("")
+          );
+          tagDropdownList.appendChild(newAllTagsOption);
         }
+
+        // Add tags to dropdown
+        tags.forEach((tag) => {
+          const tagOption = document.createElement("div");
+          tagOption.className = "tag-option";
+          if (selectedTags.includes(tag)) {
+            tagOption.classList.add("selected");
+          }
+          tagOption.setAttribute("data-tag", tag);
+          tagOption.textContent = tag;
+          tagOption.addEventListener("click", () => handleTagSelection(tag));
+          tagDropdownList.appendChild(tagOption);
+        });
       }
-      // --- End Helper ---
 
       // Display a markdown file in the main content area
       function displayMarkdownFile(file) {
@@ -414,6 +897,70 @@
               currentZipId,
               file.path
             );
+
+            // Access annotation tags if available from the annotation system
+            if (AnnotationSystem.getTagsForFile) {
+              AnnotationSystem.getTagsForFile(currentZipId, file.path)
+                .then((tags) => {
+                  if (tags && tags.length > 0) {
+                    // Ensure file has a tags array
+                    if (!file.tags) {
+                      file.tags = [];
+                    }
+
+                    // Add any new tags from annotations
+                    tags.forEach((tag) => {
+                      if (!file.tags.includes(tag)) {
+                        file.tags.push(tag);
+                      }
+                    });
+
+                    // If we added new tags, update the tags UI
+                    if (currentZipId) {
+                      // Refresh all unique tags
+                      allUniqueTags = extractUniqueTags(currentZipFiles);
+
+                      // Update tag dropdown with new tags
+                      populateTagDropdown(allUniqueTags);
+
+                      // Update displayed tags in the file list
+                      const fileItem = document.querySelector(
+                        `.file-item[data-path="${file.path}"]`
+                      );
+                      if (fileItem) {
+                        updateFileItemTags(fileItem, file);
+                      }
+                    }
+                  }
+                })
+                .catch((error) => {
+                  console.error("Error getting annotation tags:", error);
+                });
+            }
+
+            // Count annotations if that method is available
+            if (AnnotationSystem.getAnnotationCount) {
+              AnnotationSystem.getAnnotationCount(currentZipId, file.path)
+                .then((count) => {
+                  if (typeof count === "number") {
+                    file.annotations = count;
+
+                    // Update annotation count in file list if in annotations view
+                    if (viewMode === "annotations") {
+                      const fileItem = document.querySelector(
+                        `.file-item[data-path="${file.path}"]`
+                      );
+                      if (fileItem) {
+                        updateFileItemAnnotationCount(fileItem, file);
+                      }
+                    }
+                  }
+                })
+                .catch((error) => {
+                  console.error("Error getting annotation count:", error);
+                });
+            }
+
             // Fade back in AFTER rendering and annotation init
             markdownContentElement.style.opacity = "1";
 
@@ -432,6 +979,69 @@
               console.error("Error marking file as read:", error);
             });
         }, 150); // Match fade-out time before starting content update
+      }
+
+      // Helper function to update file item tags
+      function updateFileItemTags(fileItem, file) {
+        // Remove existing tags container
+        const existingTags = fileItem.querySelector(".file-item-tags");
+        if (existingTags) {
+          existingTags.remove();
+        }
+
+        // Add new tags if available
+        if (file.tags && Array.isArray(file.tags) && file.tags.length > 0) {
+          const tagsContainer = document.createElement("div");
+          tagsContainer.className = "file-item-tags";
+
+          // Limit to first 3 tags to avoid clutter
+          const displayTags = file.tags.slice(0, 3);
+          displayTags.forEach((tag) => {
+            const tagElement = document.createElement("span");
+            tagElement.className = "file-item-tag";
+            // Add active class if this tag is in selectedTags
+            if (selectedTags.includes(tag)) {
+              tagElement.classList.add("active");
+            }
+            tagElement.textContent = tag;
+            tagElement.addEventListener("click", (e) => {
+              e.stopPropagation(); // Don't trigger file selection
+              handleTagSelection(tag, true); // Toggle this tag
+            });
+            tagsContainer.appendChild(tagElement);
+          });
+
+          // Add "+" indicator if there are more tags
+          if (file.tags.length > 3) {
+            const moreIndicator = document.createElement("span");
+            moreIndicator.className = "file-item-more-tags";
+            moreIndicator.textContent = `+${file.tags.length - 3}`;
+            tagsContainer.appendChild(moreIndicator);
+          }
+
+          fileItem.appendChild(tagsContainer);
+        }
+      }
+
+      // Helper function to update file item annotation count
+      function updateFileItemAnnotationCount(fileItem, file) {
+        // Remove existing annotation count
+        const existingCount = fileItem.querySelector(".annotation-count");
+        if (existingCount) {
+          existingCount.remove();
+        }
+
+        // Add annotation count if available
+        if (
+          viewMode === "annotations" &&
+          typeof file.annotations === "number" &&
+          file.annotations > 0
+        ) {
+          const annotCount = document.createElement("span");
+          annotCount.className = "annotation-count";
+          annotCount.textContent = file.annotations;
+          fileItem.appendChild(annotCount);
+        }
       }
 
       // Display status message
@@ -504,6 +1114,29 @@
             sortOrderSelect.value = savedSortOrder;
           }
 
+          // Initialize tag filtering UI
+          // Hide annotations sort pill initially if we're in articles view
+          if (viewMode === "articles") {
+            annotationsSortPill.style.display = "none";
+          }
+
+          // Set active sort pill based on current sort order
+          let activeSortPill = "recency"; // default
+          if (savedSortOrder === "alphabet") {
+            activeSortPill = "alphabet";
+          } else if (savedSortOrder === "unread_first") {
+            activeSortPill = "unread_first";
+          } else if (savedSortOrder === "read_date") {
+            activeSortPill = "recency";
+          }
+
+          sortPills.forEach((pill) => {
+            pill.classList.toggle(
+              "active",
+              pill.getAttribute("data-sort") === activeSortPill
+            );
+          });
+
           // Get all existing ZIP files
           const zipFiles = await zipManager.getAllZipFiles();
 
@@ -571,6 +1204,21 @@
           }
         }
       }
+
+      // --- Helper for Sidebar Update on Swipe ---
+      function updateSidebarSelection(article) {
+        const fileItem = document.querySelector(
+          `.file-item[data-path="${article.path}"]`
+        );
+        if (fileItem) {
+          document.querySelectorAll(".file-item").forEach((item) => {
+            item.classList.remove("active");
+          });
+          fileItem.classList.add("active");
+          fileItem.scrollIntoView({block: "nearest"});
+        }
+      }
+      // --- End Helper ---
     </script>
   </body>
 </html>

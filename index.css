@@ -174,6 +174,7 @@ body {
   border-radius: var(--radius-md, 4px);
   margin-bottom: var(--space-1, 4px);
   transition: background-color var(--transition-fast, 0.2s);
+  position: relative;
 }
 
 .file-item:hover {
@@ -190,13 +191,47 @@ body {
 }
 
 .file-item.read::before {
-  content: "✓ ";
+  content: "✓";
   color: var(--color-primary, #0366d6);
+  position: absolute;
+  top: var(--space-2, 8px);
+  right: var(--space-3, 12px);
 }
 
 .file-item.unread::before {
-  content: "○ ";
+  content: "○";
   color: var(--color-text-secondary, #666);
+  position: absolute;
+  top: var(--space-2, 8px);
+  right: var(--space-3, 12px);
+}
+
+.file-title {
+  word-break: break-word;
+  font-size: var(--font-size-sm, 0.875rem);
+  margin-right: var(--space-6, 24px); /* Space for unread indicator */
+}
+
+.file-item.read .file-title {
+  color: var(--color-text-secondary, #666);
+}
+
+/* Annotation Count Badge */
+.annotation-count {
+  position: absolute;
+  top: var(--space-2, 8px);
+  right: var(--space-6, 24px);
+  background-color: var(--color-primary-light, #93c5fd);
+  color: var(--color-primary-dark, #2563eb);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 500);
+  min-width: 18px;
+  height: 18px;
+  border-radius: 9px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 var(--space-1, 4px);
 }
 
 .md-file {
@@ -415,3 +450,267 @@ input[type="file"] {
   }
 }
 /* --- End Responsive Sidebar Styles --- */
+
+/* --- Tag Filtering UI --- */
+
+.filter-controls {
+  padding: var(--space-4, 16px);
+  border-bottom: 1px solid var(--color-border, #ddd);
+  background-color: var(--color-surface, #f9fafb);
+}
+
+/* View Toggle Buttons */
+.view-toggle {
+  display: flex;
+  margin-bottom: var(--space-3, 12px);
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: var(--radius-md, 4px);
+  overflow: hidden;
+}
+
+.view-toggle-btn {
+  flex: 1;
+  background-color: var(--color-divider, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  border: none;
+  padding: var(--space-2, 8px) var(--space-2, 8px);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+  transition: background-color var(--transition-fast, 0.2s);
+}
+
+.view-toggle-btn.active {
+  background-color: var(--color-primary, #3b82f6);
+  color: var(--color-text-inverse, white);
+}
+
+/* Sort Pills */
+.sort-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1, 4px);
+  margin-bottom: var(--space-3, 12px);
+  overflow-x: auto;
+  padding-bottom: var(--space-1, 4px);
+}
+
+.sort-pill {
+  background-color: var(--color-divider, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-full, 9999px);
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  font-size: var(--font-size-xs, 0.75rem);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.sort-pill.active {
+  background-color: var(--color-primary-light, #93c5fd);
+  color: var(--color-primary-dark, #2563eb);
+  border-color: var(--color-primary, #3b82f6);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+/* Tag Filter */
+.tag-filter {
+  margin-bottom: var(--space-2, 8px);
+}
+
+.tag-dropdown-wrapper {
+  display: flex;
+  align-items: center;
+  margin-bottom: var(--space-2, 8px);
+}
+
+.tag-dropdown-wrapper label {
+  font-size: var(--font-size-xs, 0.75rem);
+  color: var(--color-text-secondary, #6b7280);
+  margin-right: var(--space-2, 8px);
+  white-space: nowrap;
+}
+
+.tag-dropdown-container {
+  position: relative;
+  flex-grow: 1;
+}
+
+#tag-dropdown-btn {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  background-color: var(--color-white, white);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 4px);
+  font-size: var(--font-size-xs, 0.75rem);
+  text-align: left;
+  cursor: pointer;
+}
+
+.dropdown-arrow {
+  color: var(--color-text-tertiary, #9ca3af);
+  transition: transform var(--transition-fast, 0.2s);
+}
+
+.dropdown-arrow.open {
+  transform: rotate(180deg);
+}
+
+.tag-dropdown-list {
+  position: absolute;
+  z-index: var(--z-index-dropdown, 1000);
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: var(--space-1, 4px);
+  background-color: var(--color-white, white);
+  border: 1px solid var(--color-border, #e5e7eb);
+  border-radius: var(--radius-md, 4px);
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.tag-option {
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  font-size: var(--font-size-xs, 0.75rem);
+  cursor: pointer;
+}
+
+.tag-option:hover,
+.tag-option.selected {
+  background-color: var(--color-primary-light, #93c5fd);
+  color: var(--color-primary-dark, #2563eb);
+}
+
+.tag-option:first-child {
+  border-bottom: 1px solid var(--color-border, #e5e7eb);
+}
+
+.clear-tags-btn {
+  background-color: var(--color-divider, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  border: 1px solid var(--color-border, #e5e7eb);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  font-size: var(--font-size-xs, 0.75rem);
+  margin-left: var(--space-2, 8px);
+  border-radius: var(--radius-md, 4px);
+  cursor: pointer;
+}
+
+/* Selected Tags Container */
+.selected-tags-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-1, 4px);
+}
+
+.tag-pill {
+  display: inline-flex;
+  align-items: center;
+  background-color: var(--color-primary-light, #93c5fd);
+  color: var(--color-primary-dark, #2563eb);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border-radius: var(--radius-full, 9999px);
+  font-size: var(--font-size-xs, 0.75rem);
+  font-weight: var(--font-weight-medium, 500);
+}
+
+.tag-pill .remove-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-left: var(--space-1, 4px);
+  width: 16px;
+  height: 16px;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  font-size: var(--font-size-xs, 0.75rem);
+  opacity: 0.8;
+}
+
+.tag-pill .remove-tag:hover {
+  opacity: 1;
+}
+
+/* File Item Tag Display */
+.file-item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1, 4px);
+  margin-top: var(--space-1, 4px);
+}
+
+.file-item-tag {
+  font-size: var(--font-size-xs, 0.65rem);
+  background-color: var(--color-divider, #f3f4f6);
+  color: var(--color-text-secondary, #6b7280);
+  padding: 0 var(--space-1, 4px);
+  border-radius: var(--radius-sm, 2px);
+  cursor: pointer;
+}
+
+.file-item-tag:hover,
+.file-item-tag.active {
+  background-color: var(--color-primary-light, #93c5fd);
+  color: var(--color-primary-dark, #2563eb);
+}
+
+/* Empty State for Filter Results */
+.empty-filter-results {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-10, 40px) var(--space-5, 20px);
+  text-align: center;
+}
+
+.empty-filter-results .icon {
+  font-size: 2rem;
+  color: var(--color-text-tertiary, #9ca3af);
+  margin-bottom: var(--space-4, 16px);
+}
+
+/* Clear Filters Button */
+.clear-filters-btn {
+  margin-top: var(--space-3, 12px);
+  background-color: var(--color-primary, #3b82f6);
+  color: var(--color-text-inverse, white);
+  border: none;
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  border-radius: var(--radius-md, 4px);
+  font-size: var(--font-size-xs, 0.75rem);
+  cursor: pointer;
+}
+
+.clear-filters-btn:hover {
+  background-color: var(--color-primary-dark, #2563eb);
+}
+
+.empty-filter-results h3 {
+  font-size: var(--font-size-md, 1rem);
+  font-weight: var(--font-weight-medium, 500);
+  color: var(--color-text-primary, #333);
+  margin-bottom: var(--space-2, 8px);
+}
+
+.empty-filter-results .action-hint {
+  color: var(--color-text-secondary, #666);
+  font-size: var(--font-size-sm, 0.875rem);
+  margin-bottom: var(--space-3, 12px);
+}
+
+.file-item-more-tags {
+  font-size: var(--font-size-xs, 0.65rem);
+  color: var(--color-text-tertiary, #9ca3af);
+  margin-left: var(--space-1, 4px);
+}
+
+/* --- End Tag Filtering UI --- */
