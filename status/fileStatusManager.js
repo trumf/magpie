@@ -51,7 +51,7 @@ export function checkFileReadStatus(zipData, filePath) {
  * Sort files by their read/unread status with various sorting options.
  * Does not interact with the database.
  * @param {Array} files - The array of file objects to sort.
- * @param {string} sortOrder - The sort order ('unread_first', 'recency', or 'alphabet').
+ * @param {string} sortOrder - The sort order ('unread_first', 'read_first', 'recency', or 'alphabet').
  * @returns {Array} The sorted array of files.
  */
 export function sortFilesByReadStatus(files, sortOrder) {
@@ -71,6 +71,32 @@ export function sortFilesByReadStatus(files, sortOrder) {
         // If a is unread and b is read, a comes first
         if (!a.isRead && b.isRead) return -1;
         // Otherwise sort alphabetically by displayName if available, otherwise path
+        return (a.displayName || a.path).localeCompare(b.displayName || b.path);
+      });
+
+    case "read_first":
+      // Sort read files first, then alphabetically within each group
+      return filesCopy.sort((a, b) => {
+        // If a is unread and b is read, b comes first
+        if (!a.isRead && b.isRead) return 1;
+        // If a is read and b is unread, a comes first
+        if (a.isRead && !b.isRead) return -1;
+        // Otherwise sort alphabetically by displayName if available, otherwise path
+        return (a.displayName || a.path).localeCompare(b.displayName || b.path);
+      });
+
+    case "read_date":
+      // Sort by most recently read first, with unread files at the end in alphabetical order
+      return filesCopy.sort((a, b) => {
+        // If both are read, sort by read date (most recent first)
+        if (a.isRead && b.isRead) {
+          return new Date(b.readDate) - new Date(a.readDate);
+        }
+        // If only a is read, it comes first
+        if (a.isRead && !b.isRead) return -1;
+        // If only b is read, it comes first
+        if (!a.isRead && b.isRead) return 1;
+        // If both are unread, sort alphabetically
         return (a.displayName || a.path).localeCompare(b.displayName || b.path);
       });
 

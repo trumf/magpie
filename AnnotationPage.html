@@ -152,6 +152,43 @@
         text-decoration: underline;
       }
 
+      #status-message {
+        position: fixed;
+        top: 70px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 600px;
+        z-index: 2000;
+        pointer-events: none;
+      }
+
+      #status-message .status {
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+        pointer-events: auto;
+        padding: 10px;
+        margin: 10px 0;
+        border-radius: 4px;
+      }
+
+      .status.success {
+        background-color: #d4edda;
+        color: #155724;
+        border: 1px solid #c3e6cb;
+      }
+
+      .status.error {
+        background-color: #f8d7da;
+        color: #721c24;
+        border: 1px solid #f5c6cb;
+      }
+
+      .status.info {
+        background-color: #d1ecf1;
+        color: #0c5460;
+        border: 1px solid #bee5eb;
+      }
+
       .empty-state {
         text-align: center;
         padding: 50px 0;
@@ -235,264 +272,5 @@
         </div>
       </div>
     </div>
-
-    <script type="module">
-      import {AnnotationViewer} from "./AnnotationViewer.js";
-
-      // Initialize the AnnotationViewer
-      const annotationViewer = new AnnotationViewer({
-        statusCallback: (type, message) => {
-          console.log(`[${type}] ${message}`);
-        },
-      });
-
-      // DOM elements
-      const searchInput = document.getElementById("search-input");
-      const searchBtn = document.getElementById("search-btn");
-      const exportBtn = document.getElementById("export-btn");
-      const annotationContainer = document.getElementById(
-        "annotation-container"
-      );
-      const filterButtons = document.querySelectorAll(
-        ".filter-button[data-filter]"
-      );
-      const tagFilter = document.getElementById("tag-filter");
-      const applyTagFilterBtn = document.getElementById("apply-tag-filter");
-
-      // Track currently displayed annotations
-      let currentlyDisplayedAnnotations = [];
-
-      // Event handlers
-      searchBtn.addEventListener("click", handleSearch);
-      searchInput.addEventListener("keyup", (event) => {
-        if (event.key === "Enter") {
-          handleSearch();
-        }
-      });
-
-      exportBtn.addEventListener("click", handleExport);
-
-      // Add event handler for tag filter
-      applyTagFilterBtn.addEventListener("click", handleTagFilter);
-
-      filterButtons.forEach((button) => {
-        button.addEventListener("click", () => {
-          // Remove active class from all filter buttons
-          filterButtons.forEach((btn) => btn.classList.remove("active"));
-
-          // Add active class to clicked button
-          button.classList.add("active");
-
-          const filter = button.dataset.filter;
-          handleFilter(filter);
-        });
-      });
-
-      // Load annotations when page loads
-      document.addEventListener("DOMContentLoaded", async () => {
-        try {
-          await loadAllAnnotations();
-          await populateTagDropdown();
-        } catch (error) {
-          console.error("Error loading annotations:", error);
-          showError("Failed to load annotations. Please try again.");
-        }
-      });
-
-      // Populate the tag dropdown with unique tags from all annotations
-      async function populateTagDropdown() {
-        try {
-          await annotationViewer.initialize();
-          const annotations = await annotationViewer.getAllAnnotations();
-
-          // Extract all tags from all annotations
-          const allTags = new Set();
-          annotations.forEach((annotation) => {
-            if (annotation.tags && Array.isArray(annotation.tags)) {
-              annotation.tags.forEach((tag) => allTags.add(tag));
-            }
-          });
-
-          // Sort tags alphabetically
-          const sortedTags = Array.from(allTags).sort();
-
-          // Clear existing options except the default one
-          while (tagFilter.options.length > 1) {
-            tagFilter.remove(1);
-          }
-
-          // Add options for each tag
-          sortedTags.forEach((tag) => {
-            const option = document.createElement("option");
-            option.value = tag;
-            option.textContent = tag;
-            tagFilter.appendChild(option);
-          });
-        } catch (error) {
-          console.error("Error populating tag dropdown:", error);
-        }
-      }
-
-      // Handle filtering by tag
-      async function handleTagFilter() {
-        const selectedTag = tagFilter.value;
-
-        if (!selectedTag) {
-          // If no tag is selected, show all annotations
-          await loadAllAnnotations();
-          return;
-        }
-
-        try {
-          await annotationViewer.initialize();
-          const taggedAnnotations =
-            await annotationViewer.searchAnnotationsByTag(selectedTag);
-          renderAnnotations(taggedAnnotations);
-
-          // Update filter button states
-          filterButtons.forEach((btn) => btn.classList.remove("active"));
-        } catch (error) {
-          console.error("Error filtering by tag:", error);
-          showError(
-            "An error occurred while filtering by tag. Please try again."
-          );
-        }
-      }
-
-      // Load and display all annotations
-      async function loadAllAnnotations() {
-        await annotationViewer.initialize();
-        const annotations = await annotationViewer.getAllAnnotations();
-
-        // Sort by date (newest first)
-        annotations.sort((a, b) => {
-          const dateA = new Date(a.dateCreated);
-          const dateB = new Date(b.dateCreated);
-          return dateB - dateA;
-        });
-
-        renderAnnotations(annotations);
-      }
-
-      // Handle search
-      async function handleSearch() {
-        const query = searchInput.value.trim();
-
-        if (!query) {
-          // If search is empty, show all annotations
-          await loadAllAnnotations();
-          return;
-        }
-
-        try {
-          await annotationViewer.initialize();
-          const results = await annotationViewer.searchAnnotations(query);
-          renderAnnotations(results);
-        } catch (error) {
-          console.error("Search error:", error);
-          showError("An error occurred during search. Please try again.");
-        }
-      }
-
-      // Handle filter selection
-      async function handleFilter(filter) {
-        await annotationViewer.initialize();
-
-        if (filter === "all") {
-          await loadAllAnnotations();
-          return;
-        }
-
-        if (filter === "recent") {
-          const annotations = await annotationViewer.getAllAnnotations();
-
-          // Sort by date (newest first)
-          annotations.sort((a, b) => {
-            const dateA = new Date(a.dateCreated);
-            const dateB = new Date(b.dateCreated);
-            return dateB - dateA;
-          });
-
-          // Get annotations from the last 7 days
-          const oneWeekAgo = new Date();
-          oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-
-          const recentAnnotations = annotations.filter((annotation) => {
-            const annotationDate = new Date(annotation.dateCreated);
-            return annotationDate >= oneWeekAgo;
-          });
-
-          renderAnnotations(recentAnnotations);
-        }
-      }
-
-      // Handle export - UPDATED to use currently displayed annotations
-      async function handleExport() {
-        try {
-          // Check if there are any annotations to export
-          if (currentlyDisplayedAnnotations.length === 0) {
-            showError("No annotations currently displayed to export.");
-            return;
-          }
-
-          // Use the currently displayed annotations instead of fetching all
-          const data = JSON.stringify(currentlyDisplayedAnnotations, null, 2);
-          const blob = new Blob([data], {type: "application/json"});
-          const url = URL.createObjectURL(blob);
-
-          const a = document.createElement("a");
-          a.href = url;
-          a.download = `annotations-export-${new Date()
-            .toISOString()
-            .slice(0, 10)}.json`;
-          document.body.appendChild(a);
-          a.click();
-          document.body.removeChild(a);
-          URL.revokeObjectURL(url);
-        } catch (error) {
-          console.error("Export error:", error);
-          showError("Failed to export annotations. Please try again.");
-        }
-      }
-
-      // Render annotations to the container - UPDATED to store currently displayed annotations
-      function renderAnnotations(annotations) {
-        // Store the currently displayed annotations
-        currentlyDisplayedAnnotations = annotations;
-
-        annotationViewer.renderAnnotationsToElement(
-          annotations,
-          annotationContainer
-        );
-
-        // Add click event listeners to annotation items (if needed)
-        const annotationItems = document.querySelectorAll(".annotation-item");
-        annotationItems.forEach((item) => {
-          item.addEventListener("click", (event) => {
-            // Only handle clicks on the item itself, not on links within it
-            if (event.target.closest("a")) {
-              return;
-            }
-
-            // Could expand the annotation or show details
-            // item.classList.toggle("expanded");
-          });
-        });
-      }
-
-      // Show error message
-      function showError(message) {
-        annotationContainer.innerHTML = `
-          <div class="empty-state error">
-            <p>${message}</p>
-            <button id="retry-btn">Retry</button>
-          </div>
-        `;
-
-        document
-          .getElementById("retry-btn")
-          .addEventListener("click", loadAllAnnotations);
-      }
-    </script>
   </body>
 </html>

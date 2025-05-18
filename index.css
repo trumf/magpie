@@ -244,6 +244,31 @@ body {
   border-radius: var(--radius-md, 4px);
 }
 
+/* Status message container positioning */
+#status-message {
+  position: fixed;
+  top: 70px; /* Position below the header */
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 600px;
+  z-index: 2000; /* Above most content */
+  pointer-events: none; /* Allow clicking through */
+}
+
+#status-message .status {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  pointer-events: auto; /* Make the actual message clickable */
+}
+
+/* Mobile adjustments for status message */
+@media (max-width: 768px) {
+  #status-message {
+    top: 70px; /* Position below mobile header */
+    width: 95%;
+  }
+}
+
 .status.success {
   background-color: var(--color-success-light, #d4edda);
   color: var(--color-success, #155724);
