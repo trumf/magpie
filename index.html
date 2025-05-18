@@ -50,9 +50,7 @@
           <div id="status-message"></div>
         </div>
         <div class="nav-links">
-          <a href="AnnotationPage.html" class="nav-link">
-            <i>📝</i> View All Annotations
-          </a>
+          <!-- Removed the "View All Annotations" link since it will now be part of the main view -->
         </div>
 
         <!-- Filter Controls - New Section -->
@@ -149,6 +147,7 @@
         refreshCollections,
         selectCollection,
       } from "./CollectionsManager.js";
+      import {initializeAnnotationView} from "./AnnotationPageHandler.js";
 
       // Collection management functions are now imported from CollectionsManager.js
 
@@ -292,19 +291,78 @@
         annotationsSortPill.style.display =
           mode === "annotations" ? "inline-block" : "none";
 
-        // Refresh the file list
-        if (currentZipId !== null) {
-          zipManager
-            .getZipFileById(currentZipId)
-            .then((zipData) => {
-              displayZipContents(zipData);
+        if (mode === "annotations") {
+          // Hide the file list when showing all annotations
+          fileListElement.style.display = "none";
+
+          // Show loading state while fetching annotation content
+          markdownContentElement.innerHTML =
+            "<div class='empty-state'><p>Loading annotations view...</p></div>";
+
+          // Fetch the annotation page HTML
+          fetch("AnnotationPage.html")
+            .then((response) => response.text())
+            .then((html) => {
+              const parser = new DOMParser();
+              const doc = parser.parseFromString(html, "text/html");
+              const container = doc.querySelector(".container");
+
+              if (container) {
+                // Replace content in main content area
+                markdownContentElement.innerHTML = "";
+
+                // Create wrapper for annotation content
+                const wrapper = document.createElement("div");
+                wrapper.className = "annotation-view-wrapper";
+                wrapper.innerHTML = container.innerHTML;
+
+                // Add wrapper to main content area
+                markdownContentElement.appendChild(wrapper);
+
+                // Initialize annotation view with the wrapper as parent
+                initializeAnnotationView(wrapper, () =>
+                  setViewMode("articles")
+                ).catch((error) => {
+                  console.error("Error initializing annotation view:", error);
+                  markdownContentElement.innerHTML = `<div class='empty-state'><p>Error: ${error.message}</p></div>`;
+                });
+              } else {
+                markdownContentElement.innerHTML =
+                  "<div class='empty-state'><p>Error loading annotations view.</p></div>";
+              }
             })
             .catch((error) => {
-              console.error("Error refreshing ZIP contents:", error);
+              console.error("Error fetching annotation page:", error);
+              markdownContentElement.innerHTML = `<div class='empty-state'><p>Error: ${error.message}</p></div>`;
             });
+        } else {
+          // Show the file list when in articles mode
+          fileListElement.style.display = "";
+
+          // Restore the article content or show empty state
+          if (selectedFile) {
+            displayMarkdownFile(selectedFile);
+          } else {
+            markdownContentElement.innerHTML = `
+              <div class="empty-state">
+                <p>No markdown file selected</p>
+                <p>Import a ZIP file and select a markdown file to view</p>
+              </div>`;
+          }
+
+          // Refresh the file list
+          if (currentZipId !== null) {
+            zipManager
+              .getZipFileById(currentZipId)
+              .then((zipData) => {
+                displayZipContents(zipData);
+              })
+              .catch((error) => {
+                console.error("Error refreshing ZIP contents:", error);
+              });
+          }
         }
       }
-
       // Set sort method
       function setSortMethod(method) {
         // Update UI - highlight the active sort pill
