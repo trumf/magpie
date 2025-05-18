@@ -248,7 +248,7 @@ async function handleExport() {
 }
 
 // Render annotations to the container
-function renderAnnotations(annotations) {
+function renderAnnotations(annotations, customNavigateFunction = null) {
   // Store the currently displayed annotations
   currentlyDisplayedAnnotations = annotations;
 
@@ -263,7 +263,33 @@ function renderAnnotations(annotations) {
       if (event.target.closest("a")) {
         return;
       }
-      // Additional item click handling could go here
+
+      // Get the annotation ID from the data attribute
+      const annotationId = item.getAttribute("data-id");
+      if (!annotationId) return;
+
+      // Find the annotation in the currently displayed annotations
+      const annotation = currentlyDisplayedAnnotations.find(
+        (a) => a.id === annotationId
+      );
+      if (!annotation) return;
+
+      // Get parameters for navigation
+      const fileId = annotation.fileId;
+      const filePath = annotation.filePath;
+
+      // Create URL with annotation ID as a fragment
+      const url = `index.html?file=${encodeURIComponent(
+        fileId
+      )}&path=${encodeURIComponent(filePath)}#annotation=${annotationId}`;
+
+      // Use custom navigation function if provided (for testing)
+      if (customNavigateFunction) {
+        customNavigateFunction(url);
+      } else {
+        // Default navigation
+        window.location.href = url;
+      }
     });
   });
 }

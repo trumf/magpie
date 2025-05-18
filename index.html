@@ -971,8 +971,23 @@
             // Fade back in AFTER rendering and annotation init
             markdownContentElement.style.opacity = "1";
 
+            // Check for annotation ID in the URL fragment and scroll to it if present
+            const hashParams = new URLSearchParams(
+              window.location.hash.substring(1)
+            );
+            const annotationId = hashParams.get("annotation");
+            if (annotationId && AnnotationSystem.scrollToAnnotation) {
+              // Give a little extra time for highlights to be created
+              setTimeout(() => {
+                AnnotationSystem.scrollToAnnotation({id: annotationId});
+              }, 300);
+            }
+
             // Scroll window to top after content is rendered and visible
-            window.scrollTo(0, 0);
+            // Only scroll to top if we're not scrolling to an annotation
+            if (!annotationId) {
+              window.scrollTo(0, 0);
+            }
           }, 100); // Small delay to ensure rendering is complete
 
           // Mark the file as read
