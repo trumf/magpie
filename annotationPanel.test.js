@@ -176,8 +176,16 @@ describe("annotationPanel", () => {
 
       // Check if the popup displays article note text
       const popup = document.querySelector(".annotation-details");
-      const textEl = popup.querySelector("div:first-child");
-      expect(textEl.textContent).toBe("Note for entire article");
+
+      // Get all direct child divs of the popup
+      const divs = Array.from(popup.children).filter(
+        (el) => el.tagName === "DIV"
+      );
+
+      // The text display appears to be the second div in the popup in this case
+      // (The first div contains tags, then comes the article note div)
+      const noteDiv = divs[1]; // Second div contains the article note text
+      expect(noteDiv.textContent).toBe("Note for entire article");
     });
   });
 
