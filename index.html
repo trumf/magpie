@@ -47,6 +47,7 @@
               <li class="empty">No collections yet</li>
             </ul>
           </div>
+          <div id="status-message"></div>
         </div>
         <div class="nav-links">
           <a href="AnnotationPage.html" class="nav-link">
@@ -116,18 +117,8 @@
           </div>
         </div>
 
-        <!-- Original File Controls - Keep for compatibility -->
-        <div class="file-controls">
-          <label for="sort-order" style="width: 100%">Sort by:</label>
-          <select id="sort-order" style="padding: 5px; width: 100%">
-            <option value="alphabet">Alphabetical</option>
-            <option value="unread_first">Unread First</option>
-            <option value="read_first">Read First</option>
-            <option value="read_date">Recently Read</option>
-          </select>
-
-          <div id="status-message"></div>
-        </div>
+        <!-- Empty file-controls div - can be used for future additions -->
+        <div class="file-controls"></div>
 
         <div class="file-list" id="file-list">
           <div class="empty-state">
@@ -223,7 +214,6 @@
       const fileListElement = document.getElementById("file-list");
       const markdownContentElement =
         document.getElementById("markdown-content");
-      const sortOrderSelect = document.getElementById("sort-order");
 
       // New UI elements
       const viewArticlesBtn = document.getElementById("view-articles-btn");
@@ -244,9 +234,6 @@
 
       // Event handlers
       zipFileInput.addEventListener("change", handleZipFileUpload);
-
-      // Add event listener for sort order changes
-      sortOrderSelect.addEventListener("change", handleSortOrderChange);
 
       // Event listeners for tag filtering UI
       viewArticlesBtn.addEventListener("click", () => setViewMode("articles"));
@@ -320,19 +307,7 @@
 
       // Set sort method
       function setSortMethod(method) {
-        // Update sort-order select to match for backwards compatibility
-        if (method === "recency") {
-          sortOrderSelect.value = "read_date";
-        } else if (method === "alphabet") {
-          sortOrderSelect.value = "alphabet";
-        } else if (method === "unread_first") {
-          sortOrderSelect.value = "unread_first";
-        } else if (method === "annotations") {
-          // This is a new sort option not in the original select
-          sortOrderSelect.value = "read_date"; // fallback to something reasonable
-        }
-
-        // Update UI
+        // Update UI - highlight the active sort pill
         sortPills.forEach((pill) => {
           pill.classList.toggle(
             "active",
@@ -341,7 +316,7 @@
         });
 
         // Save preference and refresh display
-        localStorage.setItem("md_file_sort_order", sortOrderSelect.value);
+        localStorage.setItem("md_file_sort_order", method);
 
         // Refresh the file list
         if (currentZipId !== null) {
@@ -488,24 +463,6 @@
         return [...allTags].sort();
       }
 
-      // Handle sort order changes
-      function handleSortOrderChange() {
-        // Save the sort order preference
-        localStorage.setItem("md_file_sort_order", sortOrderSelect.value);
-
-        // If there's a current ZIP file loaded, re-display with new sort order
-        if (currentZipId !== null) {
-          zipManager
-            .getZipFileById(currentZipId)
-            .then((zipData) => {
-              displayZipContents(zipData);
-            })
-            .catch((error) => {
-              console.error("Error refreshing ZIP contents:", error);
-            });
-        }
-      }
-
       // Handle ZIP file upload
       async function handleZipFileUpload(event) {
         const file = event.target.files[0];
@@ -567,17 +524,12 @@
         // Update the tag UI based on selected tags
         updateTagUI();
 
-        // Get current sort order from dropdown or localStorage
-        const sortOrderSelect = document.getElementById("sort-order");
-        const savedSortOrder = localStorage.getItem("md_file_sort_order");
-
-        // Set dropdown to saved sort order if available
-        if (savedSortOrder) {
-          sortOrderSelect.value = savedSortOrder;
+        // Get current sort method from active pill
+        let currentSortMethod = "recency"; // Default sort method
+        const activePill = document.querySelector(".sort-pill.active");
+        if (activePill) {
+          currentSortMethod = activePill.getAttribute("data-sort");
         }
-
-        // Get current selected sort order
-        const sortOrder = sortOrderSelect.value;
 
         // Filter files based on selected tags and view mode
         let filteredFiles = mdFiles;
@@ -609,10 +561,7 @@
         }
 
         // Apply additional sorting for annotations if needed
-        if (
-          viewMode === "annotations" &&
-          document.querySelector('.sort-pill[data-sort="annotations"].active')
-        ) {
+        if (viewMode === "annotations" && currentSortMethod === "annotations") {
           // Sort by annotation count if we have that data
           filteredFiles.sort((a, b) => {
             const aCount =
@@ -622,10 +571,16 @@
             return bCount - aCount; // Descending order
           });
         } else {
+          // Map sort method to ZipFileManager compatible value
+          let zipManagerSortKey = currentSortMethod;
+          if (currentSortMethod === "recency") {
+            zipManagerSortKey = "read_date"; // Translate for ZipFileManager
+          }
+
           // Apply standard sorting using ZipFileManager
           filteredFiles = zipManager.sortFilesByReadStatus(
             filteredFiles,
-            sortOrder
+            zipManagerSortKey
           );
         }
 
@@ -1108,34 +1063,29 @@
           // Initialize IndexedDB
           await zipManager.initIndexedDB();
 
-          // Load saved sort order preference
-          const savedSortOrder = localStorage.getItem("md_file_sort_order");
-          if (savedSortOrder) {
-            sortOrderSelect.value = savedSortOrder;
-          }
-
           // Initialize tag filtering UI
           // Hide annotations sort pill initially if we're in articles view
           if (viewMode === "articles") {
             annotationsSortPill.style.display = "none";
           }
 
-          // Set active sort pill based on current sort order
-          let activeSortPill = "recency"; // default
-          if (savedSortOrder === "alphabet") {
-            activeSortPill = "alphabet";
-          } else if (savedSortOrder === "unread_first") {
-            activeSortPill = "unread_first";
-          } else if (savedSortOrder === "read_date") {
-            activeSortPill = "recency";
-          }
-
+          // Set active sort pill based on saved preference
+          const savedSortMethod =
+            localStorage.getItem("md_file_sort_order") || "recency";
           sortPills.forEach((pill) => {
             pill.classList.toggle(
               "active",
-              pill.getAttribute("data-sort") === activeSortPill
+              pill.getAttribute("data-sort") === savedSortMethod
             );
           });
+
+          // If no active pill is found (e.g., invalid stored value), default to 'recency'
+          if (!document.querySelector(".sort-pill.active")) {
+            const recencyPill = document.querySelector(
+              '.sort-pill[data-sort="recency"]'
+            );
+            if (recencyPill) recencyPill.classList.add("active");
+          }
 
           // Get all existing ZIP files
           const zipFiles = await zipManager.getAllZipFiles();
