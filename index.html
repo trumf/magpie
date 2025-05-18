@@ -571,16 +571,10 @@
             return bCount - aCount; // Descending order
           });
         } else {
-          // Map sort method to ZipFileManager compatible value
-          let zipManagerSortKey = currentSortMethod;
-          if (currentSortMethod === "recency") {
-            zipManagerSortKey = "read_date"; // Translate for ZipFileManager
-          }
-
           // Apply standard sorting using ZipFileManager
           filteredFiles = zipManager.sortFilesByReadStatus(
             filteredFiles,
-            zipManagerSortKey
+            currentSortMethod
           );
         }
 
