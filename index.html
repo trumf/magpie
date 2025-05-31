@@ -838,7 +838,16 @@
       }
 
       // Display a markdown file in the main content area
-      function displayMarkdownFile(file) {
+      function displayMarkdownFile(file, isSwipeNavigation = false) {
+        // Clear URL hash when navigating via swipe to ensure proper scroll behavior
+        if (isSwipeNavigation && window.location.hash) {
+          history.replaceState(
+            null,
+            null,
+            window.location.pathname + window.location.search
+          );
+        }
+
         // In index.html, inside displayMarkdownFile, before calling renderMarkdownToElement
         console.log("Current ZIP Files:", currentZipFiles);
         // ... then call renderMarkdownToElement
@@ -899,7 +908,7 @@
               // Update sidebar before displaying
               updateSidebarSelection(article);
               // Display the article (will include fade in)
-              displayMarkdownFile(article);
+              displayMarkdownFile(article, true); // Mark as swipe navigation
             }
           );
         }
@@ -979,22 +988,41 @@
           // Fade back in AFTER rendering and annotation init
           markdownContentElement.style.opacity = "1";
 
-          // Check for annotation ID in the URL fragment and scroll to it if present
-          const hashParams = new URLSearchParams(
-            window.location.hash.substring(1)
-          );
-          const annotationId = hashParams.get("annotation");
-          if (annotationId && AnnotationSystem.scrollToAnnotation) {
-            // Give a little extra time for highlights to be created
+          // Handle scrolling behavior
+          if (isSwipeNavigation) {
+            // For swipe navigation, always scroll to top
             setTimeout(() => {
-              AnnotationSystem.scrollToAnnotation({id: annotationId});
-            }, 300);
-          }
-
-          // Scroll window to top after content is rendered and visible
-          // Only scroll to top if we're not scrolling to an annotation
-          if (!annotationId) {
-            window.scrollTo(0, 0);
+              // Scroll both window and content element to ensure compatibility across devices
+              window.scrollTo(0, 0);
+              if (markdownContentElement.scrollTop !== undefined) {
+                markdownContentElement.scrollTop = 0;
+              }
+              // Also try scrolling the document body and html
+              document.body.scrollTop = 0;
+              document.documentElement.scrollTop = 0;
+            }, 50); // Small delay to ensure content is rendered
+          } else {
+            // For regular navigation, check for annotation ID in the URL fragment
+            const hashParams = new URLSearchParams(
+              window.location.hash.substring(1)
+            );
+            const annotationId = hashParams.get("annotation");
+            if (annotationId && AnnotationSystem.scrollToAnnotation) {
+              // Give a little extra time for highlights to be created
+              setTimeout(() => {
+                AnnotationSystem.scrollToAnnotation({id: annotationId});
+              }, 300);
+            } else {
+              // Scroll to top if no annotation to scroll to
+              setTimeout(() => {
+                window.scrollTo(0, 0);
+                if (markdownContentElement.scrollTop !== undefined) {
+                  markdownContentElement.scrollTop = 0;
+                }
+                document.body.scrollTop = 0;
+                document.documentElement.scrollTop = 0;
+              }, 50);
+            }
           }
         }, 100); // Small delay to ensure rendering is complete
 

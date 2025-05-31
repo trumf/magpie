@@ -85,8 +85,8 @@ function handleSwipeGesture() {
       // Update sidebar first
       config.updateSidebarCallback(nextArticle);
 
-      // Trigger display of the new file via the callback
-      config.displayFileCallback(nextArticle);
+      // Trigger display of the new file via the callback, indicating it's from swipe navigation
+      config.displayFileCallback(nextArticle, true); // true indicates swipe navigation
     }
   }
   // Reset coordinates for next swipe detection
