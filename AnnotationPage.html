@@ -213,6 +213,41 @@
           grid-template-columns: 1fr;
         }
       }
+
+      .article-list {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+
+      .article-item {
+        margin-bottom: 4px;
+      }
+
+      .article-link {
+        display: block;
+        padding: 4px 8px;
+        color: #333;
+        text-decoration: none;
+        border-radius: 3px;
+        font-size: 13px;
+        transition: background-color 0.2s;
+      }
+
+      .article-link:hover {
+        background-color: #f6f8fa;
+        color: #0366d6;
+        text-decoration: none;
+      }
+
+      /* Responsive adjustments for popover */
+      @media (max-width: 768px) {
+        .article-topics-popover {
+          max-width: 90vw;
+          left: 5vw !important;
+          right: 5vw !important;
+        }
+      }
     </style>
   </head>
   <body>
@@ -235,6 +270,9 @@
             title="Export articles with selected tags as a ZIP file"
           >
             📦 Export Tagged Articles
+          </button>
+          <button id="article-topics-btn" class="filter-button">
+            Show article topics
           </button>
         </div>
       </div>
@@ -281,5 +319,36 @@
         </div>
       </div>
     </div>
+
+    <script type="module">
+      console.log("Script starting to load...");
+
+      try {
+        console.log("Attempting to import AnnotationPageHandler...");
+        const {initializeAnnotationView} = await import(
+          "./AnnotationPageHandler.js"
+        );
+        console.log("Successfully imported initializeAnnotationView");
+
+        // Initialize the annotation view when the page loads
+        document.addEventListener("DOMContentLoaded", async () => {
+          console.log("DOM content loaded, initializing annotation view...");
+          try {
+            await initializeAnnotationView(document.body);
+            console.log("Annotation view initialized successfully");
+          } catch (error) {
+            console.error("Failed to initialize annotation view:", error);
+            document.getElementById("annotation-container").innerHTML =
+              '<div class="empty-state"><p>Failed to load annotations. Please refresh the page.</p></div>';
+          }
+        });
+      } catch (importError) {
+        console.error("Failed to import AnnotationPageHandler:", importError);
+        document.addEventListener("DOMContentLoaded", () => {
+          document.getElementById("annotation-container").innerHTML =
+            '<div class="empty-state"><p>Error: This page must be served from a web server. Please use a local server or host the files.</p></div>';
+        });
+      }
+    </script>
   </body>
 </html>

@@ -1,5 +1,6 @@
 import {AnnotationViewer} from "./AnnotationViewer.js";
 import {ZipFileManager} from "./ZipFileManager.js";
+import {extractDisplayName} from "./HeadlineExtraction.js";
 
 // Maintain state for the annotation view
 let annotationViewer;
@@ -7,7 +8,12 @@ let currentlyDisplayedAnnotations = [];
 let zipManager;
 
 // DOM elements - these will be initialized when the view is created
-let searchInput, searchBtn, exportBtn, exportArticlesBtn, annotationContainer;
+let searchInput,
+  searchBtn,
+  exportBtn,
+  exportArticlesBtn,
+  annotationContainer,
+  articleTopicsBtn;
 let filterButtons, tagFilter, applyTagFilterBtn;
 
 /**
@@ -62,10 +68,14 @@ export async function initializeAnnotationView(parentElement, backCallback) {
   searchBtn = parentElement.querySelector("#search-btn");
   exportBtn = parentElement.querySelector("#export-btn");
   exportArticlesBtn = parentElement.querySelector("#export-articles-btn");
+  articleTopicsBtn = parentElement.querySelector("#article-topics-btn");
   annotationContainer = parentElement.querySelector("#annotation-container");
   filterButtons = parentElement.querySelectorAll(".filter-button[data-filter]");
   tagFilter = parentElement.querySelector("#tag-filter");
   applyTagFilterBtn = parentElement.querySelector("#apply-tag-filter");
+
+  // Debug: Check if article topics button was found
+  console.log("Article topics button found:", articleTopicsBtn);
 
   // Verify that all required elements were found
   if (!annotationContainer || !searchBtn || !exportBtn) {
@@ -85,6 +95,19 @@ export async function initializeAnnotationView(parentElement, backCallback) {
 
   exportBtn.addEventListener("click", handleExport);
   exportArticlesBtn.addEventListener("click", handleExportArticles);
+
+  // Add debugging for article topics button
+  if (articleTopicsBtn) {
+    console.log("Adding event listener to article topics button");
+    articleTopicsBtn.addEventListener("click", (event) => {
+      console.log("Article topics button clicked!");
+      event.preventDefault();
+      handleShowArticleTopics();
+    });
+  } else {
+    console.error("Article topics button not found in DOM");
+  }
+
   applyTagFilterBtn.addEventListener("click", handleTagFilter);
 
   filterButtons.forEach((button) => {
@@ -559,4 +582,131 @@ function showError(message) {
   if (retryBtn) {
     retryBtn.addEventListener("click", loadAllAnnotations);
   }
+}
+
+// Show article topics popover
+async function handleShowArticleTopics() {
+  console.log("handleShowArticleTopics called");
+  try {
+    await annotationViewer.initialize();
+    const annotations = await annotationViewer.getAllAnnotations();
+    console.log("Found annotations:", annotations.length);
+
+    // Group annotations by article (fileId/filePath)
+    const articlesByTopic = new Map();
+
+    annotations.forEach((annotation) => {
+      // Get the article identifier (use fileId or filePath)
+      const articleId = annotation.fileId || annotation.filePath;
+      const articleName =
+        extractDisplayName(
+          annotation.note || annotation.content || "",
+          annotation.filePath
+        ) || annotation.filePath;
+
+      // Get tags for this annotation
+      if (annotation.tags && Array.isArray(annotation.tags)) {
+        annotation.tags.forEach((tag) => {
+          if (!articlesByTopic.has(tag)) {
+            articlesByTopic.set(tag, new Set());
+          }
+          articlesByTopic.get(tag).add({
+            id: articleId,
+            name: articleName,
+            path: annotation.filePath,
+          });
+        });
+      }
+    });
+
+    console.log("Articles by topic:", articlesByTopic);
+    showArticleTopicsPopover(articlesByTopic);
+  } catch (error) {
+    console.error("Error showing article topics:", error);
+    showError("Failed to load article topics. Please try again.");
+  }
+}
+
+// Display the article topics popover
+function showArticleTopicsPopover(articlesByTopic) {
+  // Remove existing popover if any
+  const existingPopover = document.querySelector(".article-topics-popover");
+  if (existingPopover) {
+    existingPopover.remove();
+  }
+
+  // Create popover element
+  const popover = document.createElement("div");
+  popover.className = "article-topics-popover";
+
+  let popoverContent = `
+    <div class="popover-header">
+      <h3>Article Topics</h3>
+      <button class="close-btn" onclick="this.closest('.article-topics-popover').remove()">×</button>
+    </div>
+    <div class="popover-content">
+  `;
+
+  if (articlesByTopic.size === 0) {
+    popoverContent += '<p class="no-topics">No tagged articles found.</p>';
+  } else {
+    // Sort topics alphabetically
+    const sortedTopics = Array.from(articlesByTopic.keys()).sort();
+
+    sortedTopics.forEach((topic) => {
+      const articles = Array.from(articlesByTopic.get(topic));
+      popoverContent += `
+        <div class="topic-section">
+          <h4 class="topic-title">${topic}</h4>
+          <ul class="article-list">
+      `;
+
+      // Sort articles by name
+      articles.sort((a, b) => a.name.localeCompare(b.name));
+
+      articles.forEach((article) => {
+        popoverContent += `
+          <li class="article-item">
+            <a href="?file=${encodeURIComponent(
+              article.id
+            )}&path=${encodeURIComponent(
+          article.path
+        )}" class="article-link" title="${article.path}">
+              ${article.name}
+            </a>
+          </li>
+        `;
+      });
+
+      popoverContent += `
+          </ul>
+        </div>
+      `;
+    });
+  }
+
+  popoverContent += `
+    </div>
+  `;
+
+  popover.innerHTML = popoverContent;
+
+  // Add popover to the document
+  document.body.appendChild(popover);
+
+  // Position the popover near the button
+  const buttonRect = articleTopicsBtn.getBoundingClientRect();
+  popover.style.position = "fixed";
+  popover.style.top = buttonRect.bottom + 10 + "px";
+  popover.style.right = window.innerWidth - buttonRect.right + "px";
+
+  // Add click outside to close
+  setTimeout(() => {
+    document.addEventListener("click", function closePopover(e) {
+      if (!popover.contains(e.target) && e.target !== articleTopicsBtn) {
+        popover.remove();
+        document.removeEventListener("click", closePopover);
+      }
+    });
+  }, 100);
 }
