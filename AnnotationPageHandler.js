@@ -1,11 +1,13 @@
 import {AnnotationViewer} from "./AnnotationViewer.js";
+import {ZipFileManager} from "./ZipFileManager.js";
 
 // Maintain state for the annotation view
 let annotationViewer;
 let currentlyDisplayedAnnotations = [];
+let zipManager;
 
 // DOM elements - these will be initialized when the view is created
-let searchInput, searchBtn, exportBtn, annotationContainer;
+let searchInput, searchBtn, exportBtn, exportArticlesBtn, annotationContainer;
 let filterButtons, tagFilter, applyTagFilterBtn;
 
 /**
@@ -19,6 +21,20 @@ export async function initializeAnnotationView(parentElement, backCallback) {
     statusCallback: (type, message) => {
       console.log(`[${type}] ${message}`);
       // Display status in a status area if available
+      const statusElement = parentElement.querySelector("#status-message");
+      if (statusElement) {
+        statusElement.innerHTML = `<div class="status ${type}">${message}</div>`;
+        setTimeout(() => {
+          statusElement.innerHTML = "";
+        }, 5000);
+      }
+    },
+  });
+
+  // Initialize ZipFileManager instance
+  zipManager = new ZipFileManager({
+    statusCallback: (type, message) => {
+      console.log(`[${type}] ${message}`);
       const statusElement = parentElement.querySelector("#status-message");
       if (statusElement) {
         statusElement.innerHTML = `<div class="status ${type}">${message}</div>`;
@@ -45,6 +61,7 @@ export async function initializeAnnotationView(parentElement, backCallback) {
   searchInput = parentElement.querySelector("#search-input");
   searchBtn = parentElement.querySelector("#search-btn");
   exportBtn = parentElement.querySelector("#export-btn");
+  exportArticlesBtn = parentElement.querySelector("#export-articles-btn");
   annotationContainer = parentElement.querySelector("#annotation-container");
   filterButtons = parentElement.querySelectorAll(".filter-button[data-filter]");
   tagFilter = parentElement.querySelector("#tag-filter");
@@ -67,6 +84,7 @@ export async function initializeAnnotationView(parentElement, backCallback) {
   });
 
   exportBtn.addEventListener("click", handleExport);
+  exportArticlesBtn.addEventListener("click", handleExportArticles);
   applyTagFilterBtn.addEventListener("click", handleTagFilter);
 
   filterButtons.forEach((button) => {
@@ -84,6 +102,7 @@ export async function initializeAnnotationView(parentElement, backCallback) {
   // Initialize data
   try {
     await annotationViewer.initialize();
+    await zipManager.initIndexedDB();
     await loadAllAnnotations();
     await populateTagDropdown();
   } catch (error) {
@@ -244,6 +263,239 @@ async function handleExport() {
   } catch (error) {
     console.error("Export error:", error);
     showError("Failed to export annotations. Please try again.");
+  }
+}
+
+// Handle export of articles with selected tags
+async function handleExportArticles() {
+  // Store original button text before any operations
+  const originalText = exportArticlesBtn.innerHTML;
+
+  try {
+    // Get the currently selected tag from the dropdown
+    const selectedTag = tagFilter.value;
+
+    if (!selectedTag) {
+      showError("Please select a tag to filter articles for export.");
+      return;
+    }
+
+    // Update button state
+    exportArticlesBtn.disabled = true;
+    exportArticlesBtn.innerHTML = "⏳ Preparing export...";
+
+    // Get all ZIP files
+    const zipFiles = await zipManager.getAllZipFiles();
+    if (zipFiles.length === 0) {
+      showError("No collections found. Please import a ZIP file first.");
+      return;
+    }
+
+    // Use the most recent ZIP file for now
+    // In the future, this could be enhanced to allow selection
+    const zipData = zipFiles[zipFiles.length - 1];
+    const allFilesFromZip = zipData.files;
+    const zipName = zipData.name
+      ? zipData.name.replace(/\.zip$/i, "")
+      : "exported_articles";
+
+    // Get all annotations with the selected tag
+    const taggedAnnotations = await annotationViewer.searchAnnotationsByTag(
+      selectedTag
+    );
+
+    if (taggedAnnotations.length === 0) {
+      showError(`No annotations found with the tag "${selectedTag}".`);
+      return;
+    }
+
+    // Get unique file paths from the annotations
+    const annotatedFilePaths = new Set();
+    taggedAnnotations.forEach((annotation) => {
+      if (annotation.filePath) {
+        annotatedFilePaths.add(annotation.filePath);
+      }
+    });
+
+    // Filter for markdown articles that are in the annotated file paths
+    const taggedArticles = allFilesFromZip.filter((file) => {
+      const isMarkdown =
+        file.path.toLowerCase().endsWith(".md") ||
+        file.path.toLowerCase().endsWith(".markdown");
+      if (!isMarkdown) {
+        return false;
+      }
+      return annotatedFilePaths.has(file.path);
+    });
+
+    if (taggedArticles.length === 0) {
+      showError(
+        `No articles found that have annotations with the tag "${selectedTag}".`
+      );
+      return;
+    }
+
+    // Create new ZIP using JSZip
+    const newZip = new JSZip();
+    let articlesAdded = 0;
+    const addedImages = new Set(); // Track added images to avoid duplicates
+
+    // Process each tagged article
+    for (const articleFile of taggedArticles) {
+      try {
+        // Add article content
+        let articleContent = articleFile.content;
+        if (typeof articleContent !== "string") {
+          // Convert ArrayBuffer to string if needed
+          articleContent = new TextDecoder().decode(articleContent);
+        }
+
+        newZip.file(articleFile.path, articleContent);
+        articlesAdded++;
+
+        // Find and add images referenced in this article
+        const imageRegex = /!\[.*?\]\((.*?)\)/g;
+        let match;
+
+        while ((match = imageRegex.exec(articleContent)) !== null) {
+          const relativeImageUrl = decodeURIComponent(match[1]);
+
+          // Skip external URLs and data URLs
+          if (
+            relativeImageUrl.startsWith("http://") ||
+            relativeImageUrl.startsWith("https://") ||
+            relativeImageUrl.startsWith("data:")
+          ) {
+            continue;
+          }
+
+          try {
+            // Resolve relative image path to absolute path within ZIP
+            const articleDir = articleFile.path.substring(
+              0,
+              articleFile.path.lastIndexOf("/") + 1
+            );
+            const url = new URL(relativeImageUrl, `file:///${articleDir}`);
+            let imageAbsolutePath = decodeURIComponent(
+              url.pathname.substring(1)
+            ); // remove leading '/'
+            imageAbsolutePath = imageAbsolutePath.replace(/\\\\/g, "/"); // normalize path separators
+
+            // Skip if already added
+            if (addedImages.has(imageAbsolutePath)) {
+              continue;
+            }
+
+            // Find the image file in the original ZIP
+            const imageFile = allFilesFromZip.find((f) => {
+              const normalizedFilePath = f.path.replace(/\\\\/g, "/");
+              return normalizedFilePath === imageAbsolutePath;
+            });
+
+            if (imageFile && imageFile.content) {
+              // Determine if this is an image and has valid content
+              let isValidImage = false;
+              let imageContent = null;
+
+              // Handle both new format (isImage flag) and old format (detect by extension)
+              if (
+                imageFile.isImage === true &&
+                imageFile.content instanceof ArrayBuffer
+              ) {
+                isValidImage = true;
+                imageContent = imageFile.content;
+              } else {
+                // Check by file extension for older format
+                const lowerPath = imageFile.path.toLowerCase();
+                const imageExtensions = [
+                  ".png",
+                  ".jpg",
+                  ".jpeg",
+                  ".gif",
+                  ".svg",
+                  ".webp",
+                ];
+                if (imageExtensions.some((ext) => lowerPath.endsWith(ext))) {
+                  isValidImage = true;
+                  // Convert string content to ArrayBuffer if needed
+                  if (typeof imageFile.content === "string") {
+                    const arrayBuffer = new ArrayBuffer(
+                      imageFile.content.length
+                    );
+                    const uint8Array = new Uint8Array(arrayBuffer);
+                    for (let i = 0; i < imageFile.content.length; i++) {
+                      uint8Array[i] = imageFile.content.charCodeAt(i);
+                    }
+                    imageContent = arrayBuffer;
+                  } else {
+                    imageContent = imageFile.content;
+                  }
+                }
+              }
+
+              if (isValidImage && imageContent) {
+                newZip.file(imageAbsolutePath, imageContent, {binary: true});
+                addedImages.add(imageAbsolutePath);
+                console.log(`Added image: ${imageAbsolutePath}`);
+              }
+            } else {
+              console.warn(
+                `Image not found in ZIP: ${imageAbsolutePath} referenced by ${articleFile.path}`
+              );
+            }
+          } catch (pathError) {
+            console.warn(
+              `Error resolving image path "${relativeImageUrl}" in article "${articleFile.path}":`,
+              pathError
+            );
+          }
+        }
+      } catch (articleError) {
+        console.error(
+          `Error processing article ${articleFile.path}:`,
+          articleError
+        );
+      }
+    }
+
+    if (articlesAdded === 0) {
+      showError("No articles could be processed for export.");
+      return;
+    }
+
+    // Generate and download the ZIP
+    const statusElement = exportArticlesBtn
+      .closest(".container")
+      .querySelector("#status-message");
+    if (statusElement) {
+      statusElement.innerHTML = `<div class="status info">Generating ZIP file...</div>`;
+    }
+
+    const blob = await newZip.generateAsync({type: "blob"});
+
+    // Create download link
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = `${zipName}_${selectedTag}_export.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(link.href);
+
+    const imageCount = addedImages.size;
+    if (statusElement) {
+      statusElement.innerHTML = `<div class="status success">Exported ${articlesAdded} article(s) and ${imageCount} image(s) with tag "${selectedTag}".</div>`;
+      setTimeout(() => {
+        statusElement.innerHTML = "";
+      }, 5000);
+    }
+  } catch (error) {
+    console.error("Error during export:", error);
+    showError(`Export failed: ${error.message}`);
+  } finally {
+    // Reset button state
+    exportArticlesBtn.disabled = false;
+    exportArticlesBtn.innerHTML = originalText;
   }
 }
 

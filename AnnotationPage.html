@@ -4,6 +4,8 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Annotation Viewer</title>
+    <!-- Required external libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
     <link rel="stylesheet" href="annotation-styles.css" />
     <link rel="stylesheet" href="styles/reset.css" />
     <link rel="stylesheet" href="styles/themes.css" />
@@ -226,6 +228,13 @@
         <div class="actions">
           <button id="export-btn" class="filter-button">
             Export Annotations
+          </button>
+          <button
+            id="export-articles-btn"
+            class="filter-button"
+            title="Export articles with selected tags as a ZIP file"
+          >
+            📦 Export Tagged Articles
           </button>
         </div>
       </div>

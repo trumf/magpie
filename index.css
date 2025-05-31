@@ -733,9 +733,68 @@ input[type="file"] {
 }
 
 .file-item-more-tags {
-  font-size: var(--font-size-xs, 0.65rem);
+  background-color: var(--color-divider, #f3f4f6);
   color: var(--color-text-tertiary, #9ca3af);
+  border-radius: var(--radius-full, 9999px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  font-size: var(--font-size-xs, 0.75rem);
   margin-left: var(--space-1, 4px);
+}
+
+/* Export Controls */
+.export-controls {
+  margin-top: var(--space-3, 12px);
+  padding-top: var(--space-3, 12px);
+  border-top: 1px solid var(--color-border, #e5e7eb);
+}
+
+.export-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2, 8px);
+  padding: var(--space-3, 12px) var(--space-4, 16px);
+  background: linear-gradient(
+    135deg,
+    var(--color-primary, #3b82f6),
+    var(--color-primary-dark, #2563eb)
+  );
+  color: var(--color-text-inverse, white);
+  border: none;
+  border-radius: var(--radius-md, 4px);
+  font-size: var(--font-size-sm, 0.875rem);
+  font-weight: var(--font-weight-medium, 500);
+  cursor: pointer;
+  transition: all var(--transition-fast, 0.2s);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.export-btn:hover {
+  background: linear-gradient(
+    135deg,
+    var(--color-primary-dark, #2563eb),
+    #1d4ed8
+  );
+  box-shadow: var(--shadow-md, 0 4px 6px -1px rgba(0, 0, 0, 0.1));
+  transform: translateY(-1px);
+}
+
+.export-btn:active {
+  transform: translateY(0);
+  box-shadow: var(--shadow-sm, 0 1px 2px rgba(0, 0, 0, 0.05));
+}
+
+.export-btn:disabled {
+  background: var(--color-divider, #f3f4f6);
+  color: var(--color-text-tertiary, #9ca3af);
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.export-icon {
+  font-size: var(--font-size-lg, 1.125rem);
 }
 
 /* --- End Tag Filtering UI --- */
