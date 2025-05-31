@@ -90,23 +90,269 @@ img {
 
 /**
  * Initialize the markdown renderer with options
+ * @param {Array} zipFiles - Array of file objects from the current ZIP
+ * @param {string} currentArticlePath - The path of the current article being rendered
  */
-function initializeMarkdownRenderer() {
+function initializeMarkdownRenderer(zipFiles = [], currentArticlePath = "") {
   // Make sure marked is available
   if (typeof marked === "undefined") {
     console.error("Marked.js library is required but not loaded");
     return false;
   }
 
-  // Set up the Markdown renderer with options
-  marked.setOptions({
-    breaks: true, // Convert line breaks to <br>
-    gfm: true, // GitHub flavored markdown
-    headerIds: true,
-    highlight: function (code, lang) {
-      return code;
-    },
-  });
+  // Create renderer - handle different marked.js versions
+  let renderer;
+  try {
+    // Try newer API first (marked v5+)
+    if (typeof marked.Renderer === "function") {
+      renderer = new marked.Renderer();
+    } else if (typeof marked.marked?.Renderer === "function") {
+      renderer = new marked.marked.Renderer();
+    } else {
+      // Fallback - create a minimal renderer object
+      renderer = {
+        image: function (href, title, text) {
+          return `<img src="${href}" alt="${text}" ${
+            title ? `title="${title}"` : ""
+          }>`;
+        },
+      };
+    }
+  } catch (error) {
+    console.error("Error creating marked renderer:", error);
+    // Create fallback renderer
+    renderer = {
+      image: function (href, title, text) {
+        return `<img src="${href}" alt="${text}" ${
+          title ? `title="${title}"` : ""
+        }>`;
+      },
+    };
+  }
+
+  const originalImageRenderer = renderer.image
+    ? renderer.image.bind(renderer)
+    : function (href, title, text) {
+        return `<img src="${href}" alt="${text}" ${
+          title ? `title="${title}"` : ""
+        }>`;
+      };
+
+  renderer.image = (href, title, text) => {
+    console.log(
+      "[Custom Image Renderer] Called with href:",
+      href,
+      "title:",
+      title,
+      "text:",
+      text
+    );
+
+    const decodedHref = decodeURIComponent(href);
+    console.log("[Custom Image Renderer] decodedHref:", decodedHref);
+
+    if (
+      decodedHref &&
+      !decodedHref.startsWith("http://") &&
+      !decodedHref.startsWith("https://") &&
+      !decodedHref.startsWith("data:")
+    ) {
+      let resolvedPathAttempt = "";
+      try {
+        const articleDir = currentArticlePath.substring(
+          0,
+          currentArticlePath.lastIndexOf("/") + 1
+        );
+        const url = new URL(decodedHref, `file:///${articleDir}`);
+        resolvedPathAttempt = decodeURIComponent(
+          url.pathname.startsWith("/")
+            ? url.pathname.substring(1)
+            : url.pathname
+        );
+        resolvedPathAttempt = resolvedPathAttempt.replace(/\\\\/g, "/");
+        console.log(
+          "[Custom Image Renderer] resolvedPathAttempt:",
+          resolvedPathAttempt
+        );
+      } catch (e) {
+        console.error("[Custom Image Renderer] Error resolving image path:", e);
+        resolvedPathAttempt = decodedHref.replace(/\\\\/g, "/");
+      }
+
+      // Debug: Check all matching files
+      const matchingFiles = zipFiles.filter((f) => {
+        const normalizedFilePath = f.path.replace(/\\\\/g, "/");
+        return normalizedFilePath === resolvedPathAttempt;
+      });
+      console.log("[Custom Image Renderer] Matching files:", matchingFiles);
+
+      const imageFile = zipFiles.find((f) => {
+        const normalizedFilePath = f.path.replace(/\\\\/g, "/");
+        return normalizedFilePath === resolvedPathAttempt;
+      });
+
+      console.log("[Custom Image Renderer] Found imageFile:", imageFile);
+      if (imageFile) {
+        console.log(
+          "[Custom Image Renderer] imageFile.isImage:",
+          imageFile.isImage
+        );
+        console.log(
+          "[Custom Image Renderer] imageFile.content type:",
+          typeof imageFile.content
+        );
+        console.log(
+          "[Custom Image Renderer] imageFile.content instanceof ArrayBuffer:",
+          imageFile.content instanceof ArrayBuffer
+        );
+        console.log(
+          "[Custom Image Renderer] imageFile.mimeType:",
+          imageFile.mimeType
+        );
+      }
+
+      // Handle both old and new formats
+      let isValidImage = false;
+      let imageContent = null;
+      let mimeType = null;
+
+      if (imageFile) {
+        // New format: has isImage property
+        if (
+          imageFile.isImage === true &&
+          imageFile.content instanceof ArrayBuffer
+        ) {
+          isValidImage = true;
+          imageContent = imageFile.content;
+          mimeType = imageFile.mimeType;
+        }
+        // Old format: detect by file extension and content is string
+        else if (typeof imageFile.content === "string") {
+          const lowerPath = imageFile.path.toLowerCase();
+          const imageExtensions = [
+            ".png",
+            ".jpg",
+            ".jpeg",
+            ".gif",
+            ".svg",
+            ".webp",
+          ];
+          const isImageByExtension = imageExtensions.some((ext) =>
+            lowerPath.endsWith(ext)
+          );
+
+          if (isImageByExtension) {
+            console.log(
+              "[Custom Image Renderer] Detected old format image, converting to ArrayBuffer"
+            );
+            isValidImage = true;
+
+            // Convert string to ArrayBuffer (assume it's binary data stored as string)
+            const stringContent = imageFile.content;
+            const arrayBuffer = new ArrayBuffer(stringContent.length);
+            const uint8Array = new Uint8Array(arrayBuffer);
+            for (let i = 0; i < stringContent.length; i++) {
+              uint8Array[i] = stringContent.charCodeAt(i);
+            }
+            imageContent = arrayBuffer;
+
+            // Determine MIME type from extension
+            const extension = lowerPath.split(".").pop();
+            switch (extension) {
+              case "png":
+                mimeType = "image/png";
+                break;
+              case "jpg":
+              case "jpeg":
+                mimeType = "image/jpeg";
+                break;
+              case "gif":
+                mimeType = "image/gif";
+                break;
+              case "svg":
+                mimeType = "image/svg+xml";
+                break;
+              case "webp":
+                mimeType = "image/webp";
+                break;
+              default:
+                mimeType = "application/octet-stream";
+            }
+          }
+        }
+      }
+
+      if (isValidImage && imageContent) {
+        console.log(
+          "[Custom Image Renderer] Found image file:",
+          imageFile.path
+        );
+        try {
+          // Create a Blob from the ArrayBuffer
+          const blob = new Blob([imageContent], {
+            type: mimeType,
+          });
+          // Create an Object URL
+          const objectURL = URL.createObjectURL(blob);
+          console.log("[Custom Image Renderer] Created object URL:", objectURL);
+          return `<img src="${objectURL}" alt="${text}" ${
+            title ? `title="${title}"` : ""
+          }>`;
+        } catch (error) {
+          console.error(
+            "[Custom Image Renderer] Error creating object URL:",
+            error
+          );
+        }
+      } else {
+        if (imageFile) {
+          console.warn(
+            "[Custom Image Renderer] Image file found but not valid format. isValidImage:",
+            isValidImage,
+            "contentType:",
+            typeof imageFile.content,
+            "path:",
+            imageFile.path
+          );
+        } else {
+          console.warn(
+            "[Custom Image Renderer] Image file not found:",
+            resolvedPathAttempt
+          );
+        }
+      }
+
+      // Fallback
+      return `<img src="${href}" alt="Image not found: ${text}" ${
+        title ? `title="${title}"` : ""
+      }>`;
+    }
+
+    // For absolute URLs, use original renderer
+    return originalImageRenderer(href, title, text);
+  };
+
+  // Set up the Markdown renderer with options - handle different marked.js versions
+  try {
+    const options = {
+      renderer, // Use the custom renderer
+      breaks: true, // Convert line breaks to <br>
+      gfm: true, // GitHub flavored markdown
+      headerIds: true,
+      highlight: function (code, lang) {
+        return code;
+      },
+    };
+
+    if (typeof marked.setOptions === "function") {
+      marked.setOptions(options);
+    } else if (typeof marked.marked?.setOptions === "function") {
+      marked.marked.setOptions(options);
+    }
+    // If setOptions is not available, we'll pass options to parse() directly
+  } catch (error) {
+    console.warn("Could not set marked options:", error);
+  }
 
   return true;
 }
@@ -114,14 +360,27 @@ function initializeMarkdownRenderer() {
 /**
  * Render markdown content to HTML
  * @param {string} markdown - The markdown content to render
+ * @param {Array} zipFiles - Array of file objects from the current ZIP
+ * @param {string} currentArticlePath - The path of the current article
  * @returns {string} The rendered HTML
  */
-function renderMarkdown(markdown) {
+function renderMarkdown(markdown, zipFiles, currentArticlePath) {
   try {
-    if (!initializeMarkdownRenderer()) {
+    if (!initializeMarkdownRenderer(zipFiles, currentArticlePath)) {
       throw new Error("Markdown renderer not initialized");
     }
-    return marked.parse(markdown);
+
+    // Handle different marked.js versions for parsing
+    if (typeof marked.parse === "function") {
+      return marked.parse(markdown);
+    } else if (typeof marked.marked?.parse === "function") {
+      return marked.marked.parse(markdown);
+    } else if (typeof marked === "function") {
+      // Very old versions where marked is directly callable
+      return marked(markdown);
+    } else {
+      throw new Error("Cannot find marked parse function");
+    }
   } catch (error) {
     console.error("Error rendering markdown:", error);
     return `<p>Error rendering markdown: ${error.message}</p>`;
@@ -183,8 +442,16 @@ function applyMarkdownStyles(containerId) {
  * @param {string} markdown - The markdown content to render
  * @param {string|HTMLElement} targetElement - The element ID or DOM element to render to
  * @param {boolean} applyStyles - Whether to apply default markdown styles
+ * @param {Array} zipFiles - Array of file objects from the current ZIP (passed to renderMarkdown)
+ * @param {string} currentArticlePath - The path of the current article (passed to renderMarkdown)
  */
-function renderMarkdownToElement(markdown, targetElement, applyStyles = true) {
+function renderMarkdownToElement(
+  markdown,
+  targetElement,
+  applyStyles = true,
+  zipFiles,
+  currentArticlePath
+) {
   let element;
 
   if (typeof targetElement === "string") {
@@ -212,7 +479,7 @@ function renderMarkdownToElement(markdown, targetElement, applyStyles = true) {
     }
   }
 
-  element.innerHTML = renderMarkdown(markdown);
+  element.innerHTML = renderMarkdown(markdown, zipFiles, currentArticlePath);
 }
 
 /**
@@ -291,4 +558,5 @@ export {
   renderMarkdownFromFile,
   applyMarkdownStyles,
   getMarkdownStyles,
+  initializeMarkdownRenderer,
 };
