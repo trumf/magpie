@@ -60,7 +60,7 @@ describe("SwipeNavigation handleSwipeGesture", () => {
     expect(mockArticleNavigator.getNextArticle).toHaveBeenCalledTimes(1);
     expect(mockArticleNavigator.getPreviousArticle).not.toHaveBeenCalled();
     expect(mockUpdateSidebarCallback).toHaveBeenCalledWith(mockNextArticle);
-    expect(mockDisplayFileCallback).toHaveBeenCalledWith(mockNextArticle);
+    expect(mockDisplayFileCallback).toHaveBeenCalledWith(mockNextArticle, true);
   });
 
   test("should call getPreviousArticle on swipe right (significant horizontal)", () => {
@@ -76,7 +76,7 @@ describe("SwipeNavigation handleSwipeGesture", () => {
     expect(mockArticleNavigator.getPreviousArticle).toHaveBeenCalledTimes(1);
     expect(mockArticleNavigator.getNextArticle).not.toHaveBeenCalled();
     expect(mockUpdateSidebarCallback).toHaveBeenCalledWith(mockPrevArticle);
-    expect(mockDisplayFileCallback).toHaveBeenCalledWith(mockPrevArticle);
+    expect(mockDisplayFileCallback).toHaveBeenCalledWith(mockPrevArticle, true);
   });
 
   test("should NOT navigate on vertical swipe", () => {

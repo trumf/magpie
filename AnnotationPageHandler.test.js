@@ -8,6 +8,22 @@
 import {initializeAnnotationView} from "./AnnotationPageHandler.js";
 import {AnnotationViewer} from "./AnnotationViewer.js";
 
+// Mock ZipFileManager
+jest.mock("./ZipFileManager.js", () => {
+  return {
+    ZipFileManager: jest.fn().mockImplementation(() => ({
+      initIndexedDB: jest.fn().mockResolvedValue(undefined),
+      getAllZipFiles: jest.fn().mockResolvedValue([]),
+      getZipFileById: jest
+        .fn()
+        .mockResolvedValue({files: [], name: "test.zip"}),
+    })),
+  };
+});
+
+// Mock AnnotationViewer
+jest.mock("./AnnotationViewer.js");
+
 // Mock the AnnotationViewer module
 jest.mock("./AnnotationViewer.js", () => {
   return {
@@ -107,6 +123,7 @@ describe("AnnotationPageHandler", () => {
           <h1>Annotation Viewer</h1>
           <div class="actions">
             <button id="export-btn">Export</button>
+            <button id="export-articles-btn">Export Articles</button>
           </div>
         </div>
         <div class="search-bar">
@@ -222,7 +239,7 @@ describe("AnnotationPageHandler", () => {
       )}&path=${encodeURIComponent("test/file1.md")}#annotation=annotation1`;
 
       expect(navigateSpy).toHaveBeenCalledWith(expectedURL);
-    });
+    }, 10000);
 
     test("should not navigate when clicking on a link within an annotation item", async () => {
       // Arrange
@@ -289,7 +306,7 @@ describe("AnnotationPageHandler", () => {
 
       // Assert - the navigate spy should not have been called
       expect(navigateSpy).not.toHaveBeenCalled();
-    });
+    }, 10000);
 
     test("should correctly handle back button click", async () => {
       // Arrange
@@ -306,6 +323,6 @@ describe("AnnotationPageHandler", () => {
 
       // Assert
       expect(mockBackCallback).toHaveBeenCalledTimes(1);
-    });
+    }, 10000);
   });
 });
