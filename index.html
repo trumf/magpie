@@ -124,6 +124,17 @@
             <p>Use the Import ZIP button above to get started</p>
           </div>
         </div>
+        <a
+          href="https://librecounter.org/referer/show"
+          target="_blank"
+          style="position: absolute; bottom: 0px; left: 0px"
+        >
+          <img
+            src="https://librecounter.org/outline-white.svg"
+            referrerpolicy="unsafe-url"
+            style="width: 32px; height: 32px"
+          />
+        </a>
       </div>
       <div class="main-content" id="markdown-content">
         <div class="empty-state">
@@ -827,151 +838,171 @@
       }
 
       // Display a markdown file in the main content area
-      function displayMarkdownFile(file) {
-        // Add a fade-out effect before changing content
-        markdownContentElement.style.opacity = "0";
-
-        setTimeout(() => {
-          selectedFile = file;
-
-          // Clear any existing annotations
-          if (AnnotationSystem.reset) {
-            AnnotationSystem.reset();
-          }
-
-          // Render markdown content using the MarkdownRendering module
-          renderMarkdownToElement(file.content, markdownContentElement);
-
-          // --- Add Article Note Button ---
-          const articleNoteContainer = document.createElement("div");
-          articleNoteContainer.style.padding = "10px 0"; // Add some spacing
-          articleNoteContainer.style.borderBottom = "1px solid #eee"; // Separator
-          articleNoteContainer.style.marginBottom = "15px";
-
-          const articleNoteButton = document.createElement("button");
-          articleNoteButton.textContent = "Add Note to Article";
-          articleNoteButton.style.fontSize = "0.9em"; // Slightly smaller button
-          articleNoteButton.onclick = () => {
-            if (AnnotationSystem.createArticleAnnotation) {
-              // Ensure the method exists before calling
-              AnnotationSystem.createArticleAnnotation();
-            } else {
-              console.warn(
-                "AnnotationSystem.createArticleAnnotation is not yet implemented."
-              );
-              alert(
-                "Functionality to add article notes is not yet fully implemented."
-              );
-            }
-          };
-
-          articleNoteContainer.appendChild(articleNoteButton);
-          // Prepend the button container to the main content area
-          markdownContentElement.prepend(articleNoteContainer);
-          // --- End Add Article Note Button ---
-
-          // Set current article in the navigator
-          if (articleNavigator) {
-            articleNavigator.setCurrentArticle(file.path);
-          }
-
-          // Remove any existing navigation buttons
-          const existingNav = markdownContentElement.querySelector(
-            ".article-navigation"
+      function displayMarkdownFile(file, isSwipeNavigation = false) {
+        // Clear URL hash when navigating via swipe to ensure proper scroll behavior
+        if (isSwipeNavigation && window.location.hash) {
+          history.replaceState(
+            null,
+            null,
+            window.location.pathname + window.location.search
           );
-          if (existingNav) {
-            existingNav.remove();
+        }
+
+        // In index.html, inside displayMarkdownFile, before calling renderMarkdownToElement
+        console.log("Current ZIP Files:", currentZipFiles);
+        // ... then call renderMarkdownToElement
+        renderMarkdownToElement(
+          file.content,
+          markdownContentElement,
+          true,
+          currentZipFiles,
+          file.path
+        );
+
+        // --- Add Article Note Button ---
+        const articleNoteContainer = document.createElement("div");
+        articleNoteContainer.style.padding = "10px 0"; // Add some spacing
+        articleNoteContainer.style.borderBottom = "1px solid #eee"; // Separator
+        articleNoteContainer.style.marginBottom = "15px";
+
+        const articleNoteButton = document.createElement("button");
+        articleNoteButton.textContent = "🗂️";
+        articleNoteButton.style.fontSize = "0.9em"; // Slightly smaller button
+        articleNoteButton.onclick = () => {
+          if (AnnotationSystem.createArticleAnnotation) {
+            // Ensure the method exists before calling
+            AnnotationSystem.createArticleAnnotation();
+          } else {
+            console.warn(
+              "AnnotationSystem.createArticleAnnotation is not yet implemented."
+            );
+            alert(
+              "Functionality to add article notes is not yet fully implemented."
+            );
+          }
+        };
+
+        articleNoteContainer.appendChild(articleNoteButton);
+        // Prepend the button container to the main content area
+        markdownContentElement.prepend(articleNoteContainer);
+        // --- End Add Article Note Button ---
+
+        // Set current article in the navigator
+        if (articleNavigator) {
+          articleNavigator.setCurrentArticle(file.path);
+        }
+
+        // Remove any existing navigation buttons
+        const existingNav = markdownContentElement.querySelector(
+          ".article-navigation"
+        );
+        if (existingNav) {
+          existingNav.remove();
+        }
+
+        // Add navigation buttons if we have an article navigator
+        if (articleNavigator) {
+          articleNavigator.createNavigationButtons(
+            markdownContentElement,
+            (article) => {
+              // Update sidebar before displaying
+              updateSidebarSelection(article);
+              // Display the article (will include fade in)
+              displayMarkdownFile(article, true); // Mark as swipe navigation
+            }
+          );
+        }
+
+        // Initialize annotation system on the rendered content
+        setTimeout(() => {
+          // Pass the current ZIP ID as the file ID and the path as the file path
+          AnnotationSystem.initialize(
+            markdownContentElement,
+            currentZipId,
+            file.path
+          );
+
+          // Access annotation tags if available from the annotation system
+          if (AnnotationSystem.getTagsForFile) {
+            AnnotationSystem.getTagsForFile(currentZipId, file.path)
+              .then((tags) => {
+                if (tags && tags.length > 0) {
+                  // Ensure file has a tags array
+                  if (!file.tags) {
+                    file.tags = [];
+                  }
+
+                  // Add any new tags from annotations
+                  tags.forEach((tag) => {
+                    if (!file.tags.includes(tag)) {
+                      file.tags.push(tag);
+                    }
+                  });
+
+                  // If we added new tags, update the tags UI
+                  if (currentZipId) {
+                    // Refresh all unique tags
+                    allUniqueTags = extractUniqueTags(currentZipFiles);
+
+                    // Update tag dropdown with new tags
+                    populateTagDropdown(allUniqueTags);
+
+                    // Update displayed tags in the file list
+                    const fileItem = document.querySelector(
+                      `.file-item[data-path="${file.path}"]`
+                    );
+                    if (fileItem) {
+                      updateFileItemTags(fileItem, file);
+                    }
+                  }
+                }
+              })
+              .catch((error) => {
+                console.error("Error getting annotation tags:", error);
+              });
           }
 
-          // Add navigation buttons if we have an article navigator
-          if (articleNavigator) {
-            articleNavigator.createNavigationButtons(
-              markdownContentElement,
-              (article) => {
-                // Update sidebar before displaying
-                updateSidebarSelection(article);
-                // Display the article (will include fade in)
-                displayMarkdownFile(article);
+          // Count annotations if that method is available
+          if (AnnotationSystem.getAnnotationCount) {
+            AnnotationSystem.getAnnotationCount(currentZipId, file.path)
+              .then((count) => {
+                if (typeof count === "number") {
+                  file.annotations = count;
+
+                  // Update annotation count in file list if in annotations view
+                  if (viewMode === "annotations") {
+                    const fileItem = document.querySelector(
+                      `.file-item[data-path="${file.path}"]`
+                    );
+                    if (fileItem) {
+                      updateFileItemAnnotationCount(fileItem, file);
+                    }
+                  }
+                }
+              })
+              .catch((error) => {
+                console.error("Error getting annotation count:", error);
+              });
+          }
+
+          // Fade back in AFTER rendering and annotation init
+          markdownContentElement.style.opacity = "1";
+
+          // Handle scrolling behavior
+          if (isSwipeNavigation) {
+            // For swipe navigation, always scroll to top
+            setTimeout(() => {
+              // Scroll both window and content element to ensure compatibility across devices
+              window.scrollTo(0, 0);
+              if (markdownContentElement.scrollTop !== undefined) {
+                markdownContentElement.scrollTop = 0;
               }
-            );
-          }
-
-          // Initialize annotation system on the rendered content
-          setTimeout(() => {
-            // Pass the current ZIP ID as the file ID and the path as the file path
-            AnnotationSystem.initialize(
-              markdownContentElement,
-              currentZipId,
-              file.path
-            );
-
-            // Access annotation tags if available from the annotation system
-            if (AnnotationSystem.getTagsForFile) {
-              AnnotationSystem.getTagsForFile(currentZipId, file.path)
-                .then((tags) => {
-                  if (tags && tags.length > 0) {
-                    // Ensure file has a tags array
-                    if (!file.tags) {
-                      file.tags = [];
-                    }
-
-                    // Add any new tags from annotations
-                    tags.forEach((tag) => {
-                      if (!file.tags.includes(tag)) {
-                        file.tags.push(tag);
-                      }
-                    });
-
-                    // If we added new tags, update the tags UI
-                    if (currentZipId) {
-                      // Refresh all unique tags
-                      allUniqueTags = extractUniqueTags(currentZipFiles);
-
-                      // Update tag dropdown with new tags
-                      populateTagDropdown(allUniqueTags);
-
-                      // Update displayed tags in the file list
-                      const fileItem = document.querySelector(
-                        `.file-item[data-path="${file.path}"]`
-                      );
-                      if (fileItem) {
-                        updateFileItemTags(fileItem, file);
-                      }
-                    }
-                  }
-                })
-                .catch((error) => {
-                  console.error("Error getting annotation tags:", error);
-                });
-            }
-
-            // Count annotations if that method is available
-            if (AnnotationSystem.getAnnotationCount) {
-              AnnotationSystem.getAnnotationCount(currentZipId, file.path)
-                .then((count) => {
-                  if (typeof count === "number") {
-                    file.annotations = count;
-
-                    // Update annotation count in file list if in annotations view
-                    if (viewMode === "annotations") {
-                      const fileItem = document.querySelector(
-                        `.file-item[data-path="${file.path}"]`
-                      );
-                      if (fileItem) {
-                        updateFileItemAnnotationCount(fileItem, file);
-                      }
-                    }
-                  }
-                })
-                .catch((error) => {
-                  console.error("Error getting annotation count:", error);
-                });
-            }
-
-            // Fade back in AFTER rendering and annotation init
-            markdownContentElement.style.opacity = "1";
-
-            // Check for annotation ID in the URL fragment and scroll to it if present
+              // Also try scrolling the document body and html
+              document.body.scrollTop = 0;
+              document.documentElement.scrollTop = 0;
+            }, 50); // Small delay to ensure content is rendered
+          } else {
+            // For regular navigation, check for annotation ID in the URL fragment
             const hashParams = new URLSearchParams(
               window.location.hash.substring(1)
             );
@@ -981,26 +1012,30 @@
               setTimeout(() => {
                 AnnotationSystem.scrollToAnnotation({id: annotationId});
               }, 300);
+            } else {
+              // Scroll to top if no annotation to scroll to
+              setTimeout(() => {
+                window.scrollTo(0, 0);
+                if (markdownContentElement.scrollTop !== undefined) {
+                  markdownContentElement.scrollTop = 0;
+                }
+                document.body.scrollTop = 0;
+                document.documentElement.scrollTop = 0;
+              }, 50);
             }
+          }
+        }, 100); // Small delay to ensure rendering is complete
 
-            // Scroll window to top after content is rendered and visible
-            // Only scroll to top if we're not scrolling to an annotation
-            if (!annotationId) {
-              window.scrollTo(0, 0);
-            }
-          }, 100); // Small delay to ensure rendering is complete
-
-          // Mark the file as read
-          zipManager
-            .markFileAsRead(currentZipId, file.path)
-            .then(() => {
-              // Update the file list item to show read status
-              updateFileItemReadStatus(file.path, true);
-            })
-            .catch((error) => {
-              console.error("Error marking file as read:", error);
-            });
-        }, 150); // Match fade-out time before starting content update
+        // Mark the file as read
+        zipManager
+          .markFileAsRead(currentZipId, file.path)
+          .then(() => {
+            // Update the file list item to show read status
+            updateFileItemReadStatus(file.path, true);
+          })
+          .catch((error) => {
+            console.error("Error marking file as read:", error);
+          });
       }
 
       // Helper function to update file item tags

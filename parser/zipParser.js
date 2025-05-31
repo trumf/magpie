@@ -10,7 +10,7 @@ import {extractDisplayName} from "../HeadlineExtraction.js";
  * Parses a ZIP file and extracts its contents and metadata.
  * @param {File} file - The ZIP file to parse.
  * @returns {Promise<Object>} A promise that resolves with the zip data object:
- *                          { name, size, timestamp, fileCount, totalSize, files: [{ path, displayName, size, content }] }
+ *                          { name, size, timestamp, fileCount, totalSize, files: [{ path, displayName, size, content, isImage, mimeType }] }
  */
 export async function parseZipFile(file) {
   return new Promise((resolve, reject) => {
@@ -35,7 +35,52 @@ export async function parseZipFile(file) {
 
         for (const [path, zipEntry] of Object.entries(zip.files)) {
           if (!zipEntry.dir) {
-            const content = await zipEntry.async("string");
+            const lowerPath = path.toLowerCase();
+            const imageExtensions = [
+              ".png",
+              ".jpg",
+              ".jpeg",
+              ".gif",
+              ".svg",
+              ".webp",
+            ];
+            const isImage = imageExtensions.some((ext) =>
+              lowerPath.endsWith(ext)
+            );
+
+            let content;
+            let mimeType = null;
+
+            if (isImage) {
+              // Store images as ArrayBuffer for later Blob creation
+              content = await zipEntry.async("arraybuffer");
+
+              // Determine MIME type
+              const extension = lowerPath.split(".").pop();
+              switch (extension) {
+                case "png":
+                  mimeType = "image/png";
+                  break;
+                case "jpg":
+                case "jpeg":
+                  mimeType = "image/jpeg";
+                  break;
+                case "gif":
+                  mimeType = "image/gif";
+                  break;
+                case "svg":
+                  mimeType = "image/svg+xml";
+                  break;
+                case "webp":
+                  mimeType = "image/webp";
+                  break;
+                default:
+                  mimeType = "application/octet-stream";
+              }
+            } else {
+              // Non-images as strings
+              content = await zipEntry.async("string");
+            }
 
             // Extract display name for markdown files
             let displayName = path;
@@ -49,12 +94,12 @@ export async function parseZipFile(file) {
             files.push({
               path,
               displayName,
-              size: content.length, // Use content.length as size approximation
+              size: isImage ? content.byteLength : content.length,
               content: content,
-              // We don't store raw ArrayBuffer to avoid high memory usage
-              // If needed later, it could be re-read or stored differently
+              isImage: isImage,
+              mimeType: mimeType,
             });
-            totalSize += content.length;
+            totalSize += isImage ? content.byteLength : content.length;
           }
         }
 
@@ -64,7 +109,7 @@ export async function parseZipFile(file) {
           size: file.size, // Original file size
           timestamp: new Date().toISOString(),
           fileCount: files.length,
-          totalSize: totalSize, // Sum of extracted string content lengths
+          totalSize: totalSize, // Sum of extracted content sizes
           files,
         };
 
