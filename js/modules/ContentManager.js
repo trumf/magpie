@@ -4,6 +4,7 @@ export class ContentManager {
     this.content = contentElement;
     this.currentFile = null;
     this.articleNavigator = null;
+    this.currentZipFiles = [];
 
     this.init();
   }
@@ -38,6 +39,10 @@ export class ContentManager {
     `;
   }
 
+  setCurrentZipFiles(files) {
+    this.currentZipFiles = files;
+  }
+
   async displayMarkdownFile(file, isSwipeNavigation = false) {
     this.currentFile = file;
 
@@ -51,12 +56,13 @@ export class ContentManager {
     }
 
     try {
-      // Import the markdown rendering module
-      const {renderMarkdownToElement} = await import("../MarkdownRendering.js");
+      // Import the markdown rendering module (corrected path)
+      const {renderMarkdownToElement} = await import(
+        "../../MarkdownRendering.js"
+      );
 
-      // Get current ZIP files for rendering
-      // This should be passed from the app controller in a real implementation
-      const currentZipFiles = []; // TODO: Get this from app state
+      // Use the current ZIP files from the app state
+      const currentZipFiles = this.currentZipFiles;
 
       // Render markdown
       renderMarkdownToElement(
@@ -124,8 +130,8 @@ export class ContentManager {
 
   async initializeAnnotations(file) {
     try {
-      // Import annotation system
-      const {AnnotationSystem} = await import("../MarkdownAnnotation.js");
+      // Import annotation system (corrected path)
+      const {AnnotationSystem} = await import("../../MarkdownAnnotation.js");
 
       // Initialize annotation system with a small delay
       setTimeout(() => {
@@ -208,9 +214,9 @@ export class ContentManager {
         this.content.innerHTML = "";
         this.content.appendChild(wrapper);
 
-        // Initialize annotation view
+        // Initialize annotation view (corrected path)
         const {initializeAnnotationView} = await import(
-          "../AnnotationPageHandler.js"
+          "../../AnnotationPageHandler.js"
         );
         await initializeAnnotationView(wrapper, () => {
           this.eventBus.emit("view:change-to-articles");

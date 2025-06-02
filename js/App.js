@@ -158,6 +158,9 @@ export class App {
     // Update the file with current ZIP files for rendering
     file.zipId = this.currentZipId;
 
+    // Pass current ZIP files to content manager for rendering context
+    this.contentManager.setCurrentZipFiles(this.currentZipFiles);
+
     // The ContentManager will handle the actual display
     // We just need to ensure we have the current context
   }
@@ -251,6 +254,9 @@ export class App {
 
   async displayZipContents(zipData) {
     this.currentZipFiles = zipData.files;
+
+    // Pass current ZIP files to content manager for rendering context
+    this.contentManager.setCurrentZipFiles(this.currentZipFiles);
 
     // Filter for markdown files
     const mdFiles = zipData.files.filter((file) => {
