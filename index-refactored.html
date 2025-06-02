@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Markdown ZIP Viewer</title>
+    <!-- Required external libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.0.2/marked.min.js"></script>
+    <!-- Annotation styles -->
+    <link rel="stylesheet" href="annotation-styles.css" />
+    <link rel="stylesheet" href="styles/reset.css" />
+    <link rel="stylesheet" href="styles/themes.css" />
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <!-- Mobile Header -->
+    <div class="mobile-header">
+      <div class="mobile-header-left">
+        <button class="mobile-menu-toggle" onclick="toggleMenu()">☰</button>
+        <div class="mobile-header-title">MD Viewer</div>
+      </div>
+      <div class="mobile-header-right">
+        <!-- Annotation toggle will go here -->
+      </div>
+    </div>
+
+    <!-- Original Menu Toggle Button (now hidden via CSS on mobile) -->
+    <button class="menu-toggle" onclick="toggleMenu()">☰</button>
+
+    <div class="container">
+      <div class="sidebar" id="sidebar">
+        <div class="collection-controls">
+          <div class="collection-heading">
+            <h4>
+              Your Collections
+              <span class="collections-toggle" id="collections-toggle"></span>
+            </h4>
+            <label class="file-input-button">
+              Import ZIP
+              <input type="file" id="zip-file-input" accept=".zip" />
+            </label>
+          </div>
+
+          <div class="collection-list-container" id="collection-list-container">
+            <ul id="collection-list">
+              <li class="empty">No collections yet</li>
+            </ul>
+          </div>
+          <div id="status-message"></div>
+        </div>
+        <div class="nav-links">
+          <!-- Removed the "View All Annotations" link since it will now be part of the main view -->
+        </div>
+
+        <!-- Filter Controls - New Section -->
+        <div class="filter-controls">
+          <!-- View Toggle Buttons -->
+          <div class="view-toggle">
+            <button id="view-articles-btn" class="view-toggle-btn active">
+              Articles
+            </button>
+            <button id="view-annotations-btn" class="view-toggle-btn">
+              Annotations
+            </button>
+          </div>
+
+          <!-- Sort Pills -->
+          <div class="sort-pills">
+            <button data-sort="recency" class="sort-pill active">Recent</button>
+            <button data-sort="alphabet" class="sort-pill">A-Z</button>
+            <button data-sort="unread_first" class="sort-pill">Unread</button>
+            <button
+              data-sort="annotations"
+              class="sort-pill"
+              id="annotations-sort-pill"
+            >
+              Most Annotated
+            </button>
+          </div>
+
+          <!-- Tag Filter -->
+          <div class="tag-filter">
+            <div class="tag-dropdown-wrapper">
+              <label for="tag-dropdown-btn">Filter by tag:</label>
+              <div class="tag-dropdown-container">
+                <button id="tag-dropdown-btn">
+                  <span id="tag-dropdown-text">Select a tag</span>
+                  <span class="dropdown-arrow">▼</span>
+                </button>
+                <div
+                  id="tag-dropdown-list"
+                  class="tag-dropdown-list"
+                  style="display: none"
+                >
+                  <!-- Tags will be populated here by JS -->
+                  <div class="tag-option" data-tag="">All Tags</div>
+                  <!-- Other tags will be added dynamically -->
+                </div>
+              </div>
+              <button
+                id="clear-tags-btn"
+                class="clear-tags-btn"
+                style="display: none"
+              >
+                Clear
+              </button>
+            </div>
+
+            <!-- Selected Tags Area -->
+            <div
+              id="selected-tags-container"
+              class="selected-tags-container"
+            ></div>
+          </div>
+        </div>
+
+        <!-- Empty file-controls div - can be used for future additions -->
+        <div class="file-controls"></div>
+
+        <div class="file-list" id="file-list">
+          <div class="empty-state">
+            <p>No ZIP files imported</p>
+            <p>Use the Import ZIP button above to get started</p>
+          </div>
+        </div>
+        <a
+          href="https://librecounter.org/referer/show"
+          target="_blank"
+          style="position: absolute; bottom: 0px; left: 0px"
+        >
+          <img
+            src="https://librecounter.org/outline-white.svg"
+            referrerpolicy="unsafe-url"
+            style="width: 32px; height: 32px"
+          />
+        </a>
+      </div>
+      <div class="main-content" id="markdown-content">
+        <div class="empty-state">
+          <p>No markdown file selected</p>
+          <p>Import a ZIP file and select a markdown file to view</p>
+        </div>
+      </div>
+      <!-- Annotation panel will be inserted here by the AnnotationSystem -->
+    </div>
+
+    <!-- Add Overlay Element -->
+    <div class="overlay" id="overlay" onclick="toggleMenu()"></div>
+
+    <!-- Initialize the modular app -->
+    <script type="module">
+      import {App} from "./js/App.js";
+
+      // Initialize the application
+      window.app = new App();
+    </script>
+  </body>
+</html>
