@@ -1,4 +1,4 @@
-import {AnnotationViewer} from "./AnnotationViewer.js";
+import {AnnotationViewer} from "../src/components/annotations/AnnotationViewer.js";
 import {jest} from "@jest/globals";
 import "./annotation-viewer-test-setup.js";
 

@@ -2,12 +2,12 @@
  * Tests for the zipParser module.
  */
 import {parseZipFile} from "./zipParser.js";
-import {extractDisplayName} from "../HeadlineExtraction.js"; // We need this for mocking
+import {extractDisplayName} from "../src/utils/HeadlineExtraction.js"; // We need this for mocking
 
 // --- Mocks ---
 
 // Mock extractDisplayName as it's an external dependency for the parser
-jest.mock("../HeadlineExtraction.js", () => ({
+jest.mock("../src/utils/HeadlineExtraction.js", () => ({
   extractDisplayName: jest.fn((content, path) => `Mocked: ${path}`), // Simple mock implementation
 }));
 

@@ -1,6 +1,6 @@
 import {AnnotationViewer} from "./AnnotationViewer.js";
-import {ZipFileManager} from "./ZipFileManager.js";
-import {extractDisplayName} from "./HeadlineExtraction.js";
+import {ZipFileManager} from "../../managers/ZipFileManager.js";
+import {extractDisplayName} from "../../utils/HeadlineExtraction.js";
 
 // Maintain state for the annotation view
 let annotationViewer;

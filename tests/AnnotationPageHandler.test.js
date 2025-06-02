@@ -1,15 +1,12 @@
 /**
- * AnnotationPageHandler.test.js
- *
- * Tests for the annotation page handler functionality, focusing on click events
- * and navigation when annotations are clicked.
+ * Unit tests for AnnotationPageHandler.js
  */
 
-import {initializeAnnotationView} from "./AnnotationPageHandler.js";
-import {AnnotationViewer} from "./AnnotationViewer.js";
+import {initializeAnnotationView} from "../src/components/annotations/AnnotationPageHandler.js";
+import {AnnotationViewer} from "../src/components/annotations/AnnotationViewer.js";
 
 // Mock ZipFileManager
-jest.mock("./ZipFileManager.js", () => {
+jest.mock("../src/managers/ZipFileManager.js", () => {
   return {
     ZipFileManager: jest.fn().mockImplementation(() => ({
       initIndexedDB: jest.fn().mockResolvedValue(undefined),
@@ -22,10 +19,10 @@ jest.mock("./ZipFileManager.js", () => {
 });
 
 // Mock AnnotationViewer
-jest.mock("./AnnotationViewer.js");
+jest.mock("../src/components/annotations/AnnotationViewer.js");
 
 // Mock the AnnotationViewer module
-jest.mock("./AnnotationViewer.js", () => {
+jest.mock("../src/components/annotations/AnnotationViewer.js", () => {
   return {
     AnnotationViewer: jest.fn().mockImplementation(() => {
       return {

@@ -20,7 +20,9 @@ beforeAll(async () => {
   // Mock process.env.NODE_ENV before importing the module
   // This ensures the __setTestCoords function will work.
   process.env.NODE_ENV = "test";
-  SwipeNavigation = await import("./SwipeNavigation.js");
+  SwipeNavigation = await import(
+    "../src/components/navigation/SwipeNavigation.js"
+  );
   handleSwipeGestureInternal = SwipeNavigation.handleSwipeGesture;
   configInternal = SwipeNavigation.testConfig; // Access internal config for setup
   setTestCoordsHelper = SwipeNavigation.__setTestCoords; // Get the helper

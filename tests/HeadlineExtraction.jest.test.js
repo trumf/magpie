@@ -1,5 +1,5 @@
 // Tests for headline extraction functionality with Jest
-import {extractDisplayName} from "./HeadlineExtraction.js";
+import {extractDisplayName} from "../src/utils/HeadlineExtraction.js";
 
 describe("Headline Extraction", () => {
   test("extracts h1 from markdown content", () => {

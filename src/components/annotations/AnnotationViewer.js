@@ -6,7 +6,7 @@
  */
 
 import {AnnotationStorage} from "./AnnotationStorage.js";
-import {extractDisplayName} from "./HeadlineExtraction.js";
+import {extractDisplayName} from "../../utils/HeadlineExtraction.js";
 
 export class AnnotationViewer {
   constructor(config = {}) {

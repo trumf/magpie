@@ -10,7 +10,7 @@ import {
   renderMarkdownFromFile,
   applyMarkdownStyles,
   getMarkdownStyles,
-} from "./MarkdownRendering.js";
+} from "../src/components/content/MarkdownRendering.js";
 
 // Mock the marked library with proper implementation
 global.marked = {

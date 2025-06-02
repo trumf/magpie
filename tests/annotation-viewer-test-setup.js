@@ -1,5 +1,5 @@
 // Setup for AnnotationViewer tests
-import "./jest.setup.js";
+import "../config/jest.setup.js";
 import {jest} from "@jest/globals";
 
 // Additional setup specific to annotation viewer tests

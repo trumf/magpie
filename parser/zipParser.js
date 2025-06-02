@@ -4,7 +4,7 @@
  * Module for parsing ZIP file contents using FileReader and JSZip.
  */
 
-import {extractDisplayName} from "../HeadlineExtraction.js";
+import {extractDisplayName} from "../src/utils/HeadlineExtraction.js";
 
 /**
  * Parses a ZIP file and extracts its contents and metadata.
