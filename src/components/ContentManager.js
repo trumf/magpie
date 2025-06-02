@@ -56,9 +56,9 @@ export class ContentManager {
     }
 
     try {
-      // Import the markdown rendering module (corrected path)
+      // Import the markdown rendering module (updated path)
       const {renderMarkdownToElement} = await import(
-        "../../MarkdownRendering.js"
+        "./content/MarkdownRendering.js"
       );
 
       // Use the current ZIP files from the app state
@@ -130,8 +130,10 @@ export class ContentManager {
 
   async initializeAnnotations(file) {
     try {
-      // Import annotation system (corrected path)
-      const {AnnotationSystem} = await import("../../MarkdownAnnotation.js");
+      // Import annotation system (updated path)
+      const {AnnotationSystem} = await import(
+        "./annotations/MarkdownAnnotation.js"
+      );
 
       // Initialize annotation system with a small delay
       setTimeout(() => {
@@ -196,8 +198,8 @@ export class ContentManager {
       this.content.innerHTML =
         "<div class='empty-state'><p>Loading annotations view...</p></div>";
 
-      // Fetch the annotation page HTML
-      const response = await fetch("AnnotationPage.html");
+      // Fetch the annotation page HTML (updated path)
+      const response = await fetch("public/AnnotationPage.html");
       const html = await response.text();
 
       const parser = new DOMParser();
@@ -214,9 +216,9 @@ export class ContentManager {
         this.content.innerHTML = "";
         this.content.appendChild(wrapper);
 
-        // Initialize annotation view (corrected path)
+        // Initialize annotation view (updated path)
         const {initializeAnnotationView} = await import(
-          "../../AnnotationPageHandler.js"
+          "./annotations/AnnotationPageHandler.js"
         );
         await initializeAnnotationView(wrapper, () => {
           this.eventBus.emit("view:change-to-articles");

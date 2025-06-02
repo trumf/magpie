@@ -1,10 +1,13 @@
 import {EventBus} from "./utils/EventBus.js";
-import {SidebarManager} from "./modules/SidebarManager.js";
-import {ContentManager} from "./modules/ContentManager.js";
-import {ZipFileManager} from "../ZipFileManager.js";
-import {ArticleNavigationHelper} from "../ArticleNavigation.js";
-import {setupSwipeNavigation} from "../SwipeNavigation.js";
-import {refreshCollections, selectCollection} from "../CollectionsManager.js";
+import {SidebarManager} from "./components/SidebarManager.js";
+import {ContentManager} from "./components/ContentManager.js";
+import {ZipFileManager} from "./managers/ZipFileManager.js";
+import {ArticleNavigationHelper} from "./components/navigation/ArticleNavigation.js";
+import {setupSwipeNavigation} from "./components/navigation/SwipeNavigation.js";
+import {
+  refreshCollections,
+  selectCollection,
+} from "./managers/CollectionsManager.js";
 
 export class App {
   constructor() {
