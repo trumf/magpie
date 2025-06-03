@@ -5,7 +5,7 @@
 
 // Import the mock setup before importing the module
 import "./annotation-test-setup.js";
-import {AnnotationStorage} from "../src/components/annotations/AnnotationStorage.js";
+import {AnnotationStorage} from "./AnnotationStorage.js";
 
 describe("AnnotationStorage", () => {
   let storage;

@@ -23,7 +23,7 @@ export default {
   },
 
   // Global setup script (mocks, etc.)
-  setupFilesAfterEnv: ["<rootDir>/config/jest.setup.js"],
+  setupFilesAfterEnv: ["<rootDir>/jest.setup.js"],
 
   // Module resolution for ES modules - handle .js extension imports
   moduleNameMapper: {
@@ -40,5 +40,5 @@ export default {
   testTimeout: 10000,
 
   // Add root directory configuration
-  rootDir: "../",
+  rootDir: ".",
 };

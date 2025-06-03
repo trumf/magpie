@@ -2,11 +2,12 @@
  * Unit tests for AnnotationPageHandler.js
  */
 
-import {initializeAnnotationView} from "../src/components/annotations/AnnotationPageHandler.js";
-import {AnnotationViewer} from "../src/components/annotations/AnnotationViewer.js";
+// Import and verify module exists
+import {initializeAnnotationView} from "./AnnotationPageHandler.js";
+import {AnnotationViewer} from "./AnnotationViewer.js";
 
 // Mock ZipFileManager
-jest.mock("../src/managers/ZipFileManager.js", () => {
+jest.mock("../../managers/ZipFileManager.js", () => {
   return {
     ZipFileManager: jest.fn().mockImplementation(() => ({
       initIndexedDB: jest.fn().mockResolvedValue(undefined),
@@ -19,10 +20,10 @@ jest.mock("../src/managers/ZipFileManager.js", () => {
 });
 
 // Mock AnnotationViewer
-jest.mock("../src/components/annotations/AnnotationViewer.js");
+jest.mock("./AnnotationViewer.js");
 
 // Mock the AnnotationViewer module
-jest.mock("../src/components/annotations/AnnotationViewer.js", () => {
+jest.mock("./AnnotationViewer.js", () => {
   return {
     AnnotationViewer: jest.fn().mockImplementation(() => {
       return {

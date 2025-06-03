@@ -4,10 +4,7 @@
  * Tests for the collections management functionality.
  */
 
-import {
-  refreshCollections,
-  selectCollection,
-} from "../src/managers/CollectionsManager.js";
+import {refreshCollections, selectCollection} from "./CollectionsManager.js";
 
 describe("CollectionsManager", () => {
   // Mock elements and functions

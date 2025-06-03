@@ -4,7 +4,7 @@
 // import assert from "node:assert";
 
 // Import the function to test
-import {extractDisplayName} from "../src/utils/HeadlineExtraction.js";
+import {extractDisplayName} from "./HeadlineExtraction.js";
 
 test("extracts h1 from markdown content", () => {
   const content = `# This is a Title\n\nSome content here`;

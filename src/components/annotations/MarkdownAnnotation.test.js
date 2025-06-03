@@ -4,7 +4,7 @@
  * functions and data structures, not the complex DOM interactions
  */
 
-import {AnnotationSystem} from "../src/components/annotations/MarkdownAnnotation.js";
+import {AnnotationSystem} from "./MarkdownAnnotation.js";
 import {jest} from "@jest/globals";
 
 // We need to properly set up our mocks BEFORE importing the module

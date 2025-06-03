@@ -8,7 +8,7 @@ import {
   showMobileAnnotationForm,
   showAnnotationPopup,
   initMobileAnnotationStyles,
-} from "../src/components/annotations/annotationPanel.js";
+} from "./annotationPanel.js";
 
 describe("annotationPanel", () => {
   let mockSelection;
